@@ -12,13 +12,15 @@ CREATE TABLE IF NOT EXISTS `agencies` (
 ALTER TABLE `users` ADD COLUMN `agency_id` INT NULL AFTER `id`;
 ALTER TABLE `projects` ADD COLUMN `agency_id` INT NULL AFTER `id`;
 
--- Agencia inicial solo si ya hay datos (en una instalación nueva no se crea nada)
+-- Agencia inicial solo si ya hay datos (en una instalación nueva no se crea nada) y no se creó
+-- ya en una ejecución anterior de esta migración que se cortó a mitad
 INSERT INTO `agencies` (`name`, `logo`)
 SELECT
     COALESCE((SELECT NULLIF(`setting_value`, '') FROM `app_settings` WHERE `setting_key` = 'app_name'), 'Mi agencia'),
     (SELECT NULLIF(`setting_value`, '') FROM `app_settings` WHERE `setting_key` = 'app_logo')
 FROM DUAL
-WHERE EXISTS (SELECT 1 FROM `users`) OR EXISTS (SELECT 1 FROM `projects`);
+WHERE (EXISTS (SELECT 1 FROM `users`) OR EXISTS (SELECT 1 FROM `projects`))
+  AND NOT EXISTS (SELECT 1 FROM `agencies`);
 
 UPDATE `users` SET `agency_id` = (SELECT MIN(`id`) FROM `agencies`) WHERE `agency_id` IS NULL;
 UPDATE `projects` SET `agency_id` = (SELECT MIN(`id`) FROM `agencies`) WHERE `agency_id` IS NULL;
