@@ -63,8 +63,9 @@ $folders = $stmtFolders->fetchAll();
 
 // 4. Obtener Actividades / Tareas con conteo de comentarios por tarea
 $stmtTasks = $db->prepare("
-    SELECT t.*, COUNT(c.id) as comments_count 
+    SELECT t.*, COALESCE(au.name, t.assigned_to) AS assigned_to, COUNT(c.id) as comments_count 
     FROM tasks t 
+    LEFT JOIN users au ON au.id = t.assigned_user_id 
     LEFT JOIN comments c ON t.id = c.task_id 
     WHERE t.project_id = ? 
     GROUP BY t.id 
@@ -1027,7 +1028,7 @@ require_once __DIR__ . '/includes/sidebar.php';
                             </div>
 
                             <div class="flex items-center gap-1 flex-shrink-0">
-                                <a href="actions/file-actions.php?action=download&id=<?= $file['id'] ?>" class="p-1.5 rounded-lg bg-slate-100 hover:bg-brand-50 text-slate-600 hover:text-brand-600 transition" title="Descargar">
+                                <a href="api/files.php?action=download&id=<?= $file['id'] ?>" class="p-1.5 rounded-lg bg-slate-100 hover:bg-brand-50 text-slate-600 hover:text-brand-600 transition" title="Descargar">
                                     <i data-lucide="download" class="w-3.5 h-3.5"></i>
                                 </a>
                                 <?php if ($canManageAttachments || $file['user_id'] == $user['id']): ?>
@@ -1350,7 +1351,7 @@ require_once __DIR__ . '/includes/sidebar.php';
                         <select id="edit-task-assigned-input" class="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs focus:ring-brand-500 bg-white">
                             <option value="">Sin asignar</option>
                             <?php foreach ($collaborators as $col): ?>
-                                <option value="<?= e($col['name']) ?>"><?= e($col['name']) ?></option>
+                                <option value="<?= (int)$col['id'] ?>"><?= e($col['name']) ?></option>
                             <?php endforeach; ?>
                         </select>
                     </div>
@@ -1608,7 +1609,7 @@ require_once __DIR__ . '/includes/sidebar.php';
                             <select id="task-assigned-input" class="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs focus:ring-brand-500 bg-white">
                                 <option value="">Sin asignar</option>
                                 <?php foreach ($collaborators as $col): ?>
-                                    <option value="<?= e($col['name']) ?>"><?= e($col['name']) ?></option>
+                                    <option value="<?= (int)$col['id'] ?>"><?= e($col['name']) ?></option>
                                 <?php endforeach; ?>
                             </select>
                         </div>
@@ -2186,7 +2187,7 @@ require_once __DIR__ . '/includes/sidebar.php';
         formData.append('priority', document.getElementById('edit-task-prio-input').value);
         formData.append('status', document.getElementById('edit-task-status-input').value);
         formData.append('due_date', document.getElementById('edit-task-date-input').value);
-        formData.append('assigned_to', document.getElementById('edit-task-assigned-input').value);
+        formData.append('assigned_user_id', document.getElementById('edit-task-assigned-input').value);
 
         try {
             const res = await fetch('api/tasks.php', { method: 'POST', body: formData });
@@ -2721,7 +2722,7 @@ require_once __DIR__ . '/includes/sidebar.php';
         formData.append('description', description);
         formData.append('priority', priority);
         formData.append('due_date', dueDate);
-        formData.append('assigned_to', assignedTo);
+        formData.append('assigned_user_id', assignedTo);
 
         try {
             // 1. Crear Tarea

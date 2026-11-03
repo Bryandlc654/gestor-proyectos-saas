@@ -225,6 +225,19 @@ function folderBelongsToProject(int $folderId, int $projectId): bool {
     return (bool)$stmt->fetchColumn();
 }
 
+// Nombre del usuario si puede ser responsable de tareas del proyecto (miembro o propietario); null si no
+function projectAssigneeName(int $userId, int $projectId): ?string {
+    $stmt = getDB()->prepare("
+        SELECT u.name FROM users u
+        WHERE u.id = ?
+          AND (u.id IN (SELECT user_id FROM project_members WHERE project_id = ?)
+               OR u.id = (SELECT user_id FROM projects WHERE id = ?))
+    ");
+    $stmt->execute([$userId, $projectId, $projectId]);
+    $name = $stmt->fetchColumn();
+    return $name === false ? null : $name;
+}
+
 // Validar URL externa: solo http/https (bloquea javascript:, data:, etc.)
 function isSafeUrl(string $url): bool {
     if (!filter_var($url, FILTER_VALIDATE_URL)) {
@@ -410,6 +423,24 @@ function clearLoginAttempts(string $email): void {
     } catch (Exception $e) {
         error_log('login_attempts no disponible: ' . $e->getMessage());
     }
+}
+
+// Paginación: calcula la página actual (?page=N), el offset y el total de páginas
+function paginate(int $totalItems, int $perPage = 25): array {
+    $totalPages = max(1, (int)ceil($totalItems / $perPage));
+    $page = min(max(1, (int)($_GET['page'] ?? 1)), $totalPages);
+    return [
+        'page'        => $page,
+        'per_page'    => $perPage,
+        'offset'      => ($page - 1) * $perPage,
+        'total'       => $totalItems,
+        'total_pages' => $totalPages,
+    ];
+}
+
+// URL de la página actual cambiando solo el número de página (conserva filtros)
+function pageUrl(int $page): string {
+    return '?' . http_build_query(array_merge($_GET, ['page' => $page]));
 }
 
 // Formateo de fechas a formato amigable en español

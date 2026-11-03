@@ -54,8 +54,21 @@ if ($userRole === 'admin') {
     $allowedProjectIds = array_column($projectsList, 'id');
 }
 
-// Colaboradores para el filtro
-$collaborators = $db->query("SELECT id, name FROM users ORDER BY name ASC")->fetchAll();
+// Colaboradores para el filtro: solo miembros (o propietarios) de los proyectos visibles
+if (empty($allowedProjectIds)) {
+    $collaborators = [];
+} else {
+    $inCollab = implode(',', array_fill(0, count($allowedProjectIds), '?'));
+    $stmtCollab = $db->prepare("
+        SELECT DISTINCT u.id, u.name
+        FROM users u
+        WHERE u.id IN (SELECT user_id FROM project_members WHERE project_id IN ($inCollab))
+           OR u.id IN (SELECT user_id FROM projects WHERE id IN ($inCollab))
+        ORDER BY u.name ASC
+    ");
+    $stmtCollab->execute(array_merge($allowedProjectIds, $allowedProjectIds));
+    $collaborators = $stmtCollab->fetchAll();
+}
 
 // 2. Construir consulta de Tareas Globales
 $where = [];
@@ -81,10 +94,10 @@ if ($filterPriority !== 'todas' && in_array($filterPriority, ['baja', 'media', '
 
 if ($filterAssigned !== 'todos' && !empty($filterAssigned)) {
     if ($filterAssigned === 'sin_asignar') {
-        $where[] = "(t.assigned_to IS NULL OR t.assigned_to = '')";
+        $where[] = "t.assigned_user_id IS NULL AND (t.assigned_to IS NULL OR t.assigned_to = '')";
     } else {
-        $where[] = "t.assigned_to = ?";
-        $params[] = $filterAssigned;
+        $where[] = "t.assigned_user_id = ?";
+        $params[] = (int)$filterAssigned;
     }
 }
 
@@ -97,30 +110,60 @@ if (!empty($search)) {
 
 $whereSql = !empty($where) ? "WHERE " . implode(" AND ", $where) : "";
 
-$query = "
-    SELECT 
-        t.*,
-        p.name as project_name,
-        p.color as project_color,
-        (SELECT COUNT(*) FROM comments c WHERE c.task_id = t.id) as comments_count,
-        (SELECT COUNT(*) FROM project_files pf WHERE pf.task_id = t.id) as files_count,
-        (SELECT COUNT(*) FROM checklists chk WHERE chk.task_id = t.id) as checklists_count
+// Totales por estado (sobre todos los resultados, no solo la página actual)
+$stmtTotals = $db->prepare("
+    SELECT t.status, COUNT(*) AS total
     FROM tasks t
     INNER JOIN projects p ON t.project_id = p.id
     $whereSql
+    GROUP BY t.status
+");
+$stmtTotals->execute($params);
+$statusTotals = array_merge(['pendiente' => 0, 'en_progreso' => 0, 'completada' => 0], $stmtTotals->fetchAll(PDO::FETCH_KEY_PAIR));
+$totalTasksCount = array_sum($statusTotals);
+
+$pagination = paginate($totalTasksCount, 60);
+
+$query = "
+    SELECT 
+        t.*,
+        COALESCE(au.name, t.assigned_to) AS assigned_to,
+        p.name as project_name,
+        p.color as project_color
+    FROM tasks t
+    INNER JOIN projects p ON t.project_id = p.id
+    LEFT JOIN users au ON au.id = t.assigned_user_id
+    $whereSql
     ORDER BY (t.priority = 'urgente') DESC, (t.priority = 'alta') DESC, t.due_date ASC, t.id DESC
+    LIMIT {$pagination['per_page']} OFFSET {$pagination['offset']}
 ";
 
 $stmtTasks = $db->prepare($query);
 $stmtTasks->execute($params);
 $allTasks = $stmtTasks->fetchAll();
 
-// Clasificación por columnas Kanban
+// Contadores de recursos solo para las tareas de esta página (3 consultas agrupadas en lugar de 3 subconsultas por fila)
+$taskIds = array_column($allTasks, 'id');
+$resourceCounts = ['comments' => [], 'project_files' => [], 'checklists' => []];
+if (!empty($taskIds)) {
+    $inTasks = implode(',', array_fill(0, count($taskIds), '?'));
+    foreach (array_keys($resourceCounts) as $table) {
+        $stmtCount = $db->prepare("SELECT task_id, COUNT(*) FROM {$table} WHERE task_id IN ($inTasks) GROUP BY task_id");
+        $stmtCount->execute($taskIds);
+        $resourceCounts[$table] = $stmtCount->fetchAll(PDO::FETCH_KEY_PAIR);
+    }
+}
+foreach ($allTasks as &$t) {
+    $t['comments_count'] = (int)($resourceCounts['comments'][$t['id']] ?? 0);
+    $t['files_count'] = (int)($resourceCounts['project_files'][$t['id']] ?? 0);
+    $t['checklists_count'] = (int)($resourceCounts['checklists'][$t['id']] ?? 0);
+}
+unset($t);
+
+// Clasificación por columnas Kanban (tareas de la página actual)
 $tasksPending = array_filter($allTasks, fn($t) => $t['status'] === 'pendiente');
 $tasksInProgress = array_filter($allTasks, fn($t) => $t['status'] === 'en_progreso');
 $tasksCompleted = array_filter($allTasks, fn($t) => $t['status'] === 'completada');
-
-$totalTasksCount = count($allTasks);
 
 require_once __DIR__ . '/includes/header.php';
 require_once __DIR__ . '/includes/sidebar.php';
@@ -198,7 +241,7 @@ require_once __DIR__ . '/includes/sidebar.php';
                         <option value="todos" <?= $filterAssigned === 'todos' ? 'selected' : '' ?>>Todos los miembros</option>
                         <option value="sin_asignar" <?= $filterAssigned === 'sin_asignar' ? 'selected' : '' ?>>Sin asignar</option>
                         <?php foreach ($collaborators as $col): ?>
-                            <option value="<?= e($col['name']) ?>" <?= $filterAssigned === $col['name'] ? 'selected' : '' ?>>
+                            <option value="<?= (int)$col['id'] ?>" <?= $filterAssigned === (string)$col['id'] ? 'selected' : '' ?>>
                                 <?= e($col['name']) ?>
                             </option>
                         <?php endforeach; ?>
@@ -222,15 +265,15 @@ require_once __DIR__ . '/includes/sidebar.php';
                 <span class="text-slate-300">•</span>
                 <span class="inline-flex items-center gap-1 text-xs text-slate-500">
                     <span class="w-2 h-2 rounded-full bg-slate-400"></span>
-                    <span><?= count($tasksPending) ?> por hacer</span>
+                    <span><?= $statusTotals['pendiente'] ?> por hacer</span>
                 </span>
                 <span class="inline-flex items-center gap-1 text-xs text-amber-600 font-medium">
                     <span class="w-2 h-2 rounded-full bg-amber-500"></span>
-                    <span><?= count($tasksInProgress) ?> en curso</span>
+                    <span><?= $statusTotals['en_progreso'] ?> en curso</span>
                 </span>
                 <span class="inline-flex items-center gap-1 text-xs text-emerald-600 font-medium">
                     <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
-                    <span><?= count($tasksCompleted) ?> completadas</span>
+                    <span><?= $statusTotals['completada'] ?> completadas</span>
                 </span>
             </div>
         </div>
@@ -298,7 +341,7 @@ require_once __DIR__ . '/includes/sidebar.php';
                                 <h3 class="font-display font-bold text-slate-800 text-sm">Por Hacer</h3>
                             </div>
                             <span class="px-2 py-0.5 rounded-full bg-slate-200/70 text-[11px] font-bold text-slate-600">
-                                <?= count($tasksPending) ?>
+                                <?= $statusTotals['pendiente'] ?>
                             </span>
                         </div>
 
@@ -323,7 +366,7 @@ require_once __DIR__ . '/includes/sidebar.php';
                                 <h3 class="font-display font-bold text-slate-800 text-sm">En Progreso</h3>
                             </div>
                             <span class="px-2 py-0.5 rounded-full bg-amber-100 text-[11px] font-bold text-amber-700">
-                                <?= count($tasksInProgress) ?>
+                                <?= $statusTotals['en_progreso'] ?>
                             </span>
                         </div>
 
@@ -348,7 +391,7 @@ require_once __DIR__ . '/includes/sidebar.php';
                                 <h3 class="font-display font-bold text-slate-800 text-sm">Completadas</h3>
                             </div>
                             <span class="px-2 py-0.5 rounded-full bg-emerald-100 text-[11px] font-bold text-emerald-700">
-                                <?= count($tasksCompleted) ?>
+                                <?= $statusTotals['completada'] ?>
                             </span>
                         </div>
 
@@ -453,6 +496,8 @@ require_once __DIR__ . '/includes/sidebar.php';
                 </div>
             </div>
 
+            <?php require __DIR__ . '/includes/pagination.php'; ?>
+
         <?php endif; ?>
         </div><!-- /#tasks-real-content -->
 
@@ -516,7 +561,7 @@ require_once __DIR__ . '/includes/sidebar.php';
                     <select id="global-task-assigned" class="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs focus:ring-brand-500 bg-white">
                         <option value="">Sin asignar</option>
                         <?php foreach ($collaborators as $col): ?>
-                            <option value="<?= e($col['name']) ?>"><?= e($col['name']) ?></option>
+                            <option value="<?= (int)$col['id'] ?>"><?= e($col['name']) ?></option>
                         <?php endforeach; ?>
                     </select>
                 </div>
@@ -625,7 +670,7 @@ async function handleCreateGlobalTask(e) {
     fd.append('description', description);
     fd.append('priority', priority);
     fd.append('due_date', dueDate);
-    fd.append('assigned_to', assignedTo);
+    fd.append('assigned_user_id', assignedTo);
 
     try {
         const res = await fetch('api/tasks.php', { method: 'POST', body: fd });
