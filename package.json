@@ -1,0 +1,12 @@
+{
+  "name": "flowtasks",
+  "private": true,
+  "description": "Build de estilos de FlowTasks (Tailwind CSS)",
+  "scripts": {
+    "build:css": "tailwindcss -i ./assets/css/input.css -o ./assets/css/app.css --minify",
+    "watch:css": "tailwindcss -i ./assets/css/input.css -o ./assets/css/app.css --watch"
+  },
+  "devDependencies": {
+    "tailwindcss": "3.4.19"
+  }
+}

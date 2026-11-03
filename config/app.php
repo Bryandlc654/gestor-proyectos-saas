@@ -1,5 +1,16 @@
 <?php
-// config/app.php - Utilidades globales, sesión y seguridad
+// config/app.php - Arranque de la aplicación (sesión, cabeceras) y funciones de compatibilidad.
+// La lógica vive en las clases de src/ (namespace App\); estas funciones globales las envuelven
+// para que las páginas existentes sigan funcionando sin cambios.
+
+use App\Repository\ProjectRepository;
+use App\Security\Csrf;
+use App\Security\LoginThrottle;
+use App\Security\Permissions;
+use App\Security\UrlValidator;
+use App\Support\Format;
+use App\Support\Paginator;
+use App\Upload\AttachmentStorage;
 
 // Activar compresión GZIP de salida si está disponible para reducir transferencia en un 70-80%
 if (!ob_get_level() && !headers_sent() && extension_loaded('zlib') && !ini_get('zlib.output_compression')) {
@@ -113,211 +124,96 @@ function isCliente(): bool {
     return currentUserRole() === 'cliente';
 }
 
+// Repositorio de proyectos compartido por las funciones de compatibilidad
+function projectRepository(): ProjectRepository {
+    static $repo = null;
+    return $repo ??= new ProjectRepository(getDB());
+}
+
 // Comprobar si el usuario tiene permiso para acceder/ver un proyecto
 function canAccessProject(int $projectId, int $userId, ?string $userRole = null): bool {
-    $role = $userRole ?? currentUserRole();
-    if ($role === 'admin') return true;
-    try {
-        $db = getDB();
-        if ($role === 'cliente') {
-            // Un cliente solo puede acceder a los proyectos a los que ha sido explícitamente vinculado
-            $stmt = $db->prepare("
-                SELECT id FROM project_members 
-                WHERE project_id = ? AND user_id = ?
-            ");
-            $stmt->execute([$projectId, $userId]);
-            return (bool)$stmt->fetch();
-        }
-        $stmt = $db->prepare("
-            SELECT id FROM projects 
-            WHERE id = ? AND (user_id = ? OR id IN (SELECT project_id FROM project_members WHERE user_id = ?))
-        ");
-        $stmt->execute([$projectId, $userId, $userId]);
-        return (bool)$stmt->fetch();
-    } catch (Exception $e) {
-        return false;
-    }
+    return projectRepository()->canAccess($projectId, $userId, $userRole ?? currentUserRole());
 }
 
 // Comprobar si el usuario puede gestionar/editar metadatos del proyecto (Admin o PM propietario/asignado)
 function canManageProject(int $projectId, int $userId, ?string $userRole = null): bool {
-    $role = $userRole ?? currentUserRole();
-    if ($role === 'admin') return true;
-    if ($role === 'project_manager') {
-        try {
-            $db = getDB();
-            $stmt = $db->prepare("
-                SELECT id FROM projects 
-                WHERE id = ? AND (user_id = ? OR id IN (SELECT project_id FROM project_members WHERE user_id = ? AND role = 'project_manager'))
-            ");
-            $stmt->execute([$projectId, $userId, $userId]);
-            return (bool)$stmt->fetch();
-        } catch (Exception $e) {
-            return false;
-        }
-    }
-    return false;
+    return projectRepository()->canManage($projectId, $userId, $userRole ?? currentUserRole());
 }
 
-// Puede crear o editar tareas: admin, project_manager, colaborador
+// Permisos por rol (la lógica está en App\Security\Permissions)
 function canManageTasks(?string $userRole = null): bool {
-    $role = $userRole ?? currentUserRole();
-    return in_array($role, ['admin', 'project_manager', 'colaborador']);
+    return Permissions::canManageTasks($userRole ?? currentUserRole());
 }
 
-// Alias semántico para edición de tareas
 function canEditTasks(?string $userRole = null): bool {
     return canManageTasks($userRole);
 }
 
-// Puede eliminar tareas: admin, project_manager
 function canDeleteTasks(?string $userRole = null): bool {
-    $role = $userRole ?? currentUserRole();
-    return in_array($role, ['admin', 'project_manager']);
+    return Permissions::canDeleteTasks($userRole ?? currentUserRole());
 }
 
-// Puede cambiar estado de tareas: admin, project_manager, colaborador (cliente NO)
 function canChangeTaskStatus(?string $userRole = null): bool {
-    $role = $userRole ?? currentUserRole();
-    return in_array($role, ['admin', 'project_manager', 'colaborador']);
+    return Permissions::canChangeTaskStatus($userRole ?? currentUserRole());
 }
 
-// Puede gestionar checklists (crear listas, añadir pasos, completar): admin, project_manager, colaborador
 function canManageChecklists(?string $userRole = null): bool {
-    $role = $userRole ?? currentUserRole();
-    return in_array($role, ['admin', 'project_manager', 'colaborador']);
+    return Permissions::canManageChecklists($userRole ?? currentUserRole());
 }
 
-// Puede gestionar archivos y carpetas: admin, project_manager, colaborador
 function canManageAttachments(?string $userRole = null): bool {
-    $role = $userRole ?? currentUserRole();
-    return in_array($role, ['admin', 'project_manager', 'colaborador']);
+    return Permissions::canManageAttachments($userRole ?? currentUserRole());
 }
 
-// Puede crear o consultar tickets: todos los roles (admin, project_manager, colaborador, cliente)
 function canCreateTickets(?string $userRole = null): bool {
-    return true;
+    return Permissions::canCreateTickets($userRole ?? currentUserRole());
 }
 
-// Puede cambiar el estado de tickets: admin, project_manager, colaborador (cliente NO)
 function canChangeTicketStatus(?string $userRole = null): bool {
-    $role = $userRole ?? currentUserRole();
-    return in_array($role, ['admin', 'project_manager', 'colaborador']);
+    return Permissions::canChangeTicketStatus($userRole ?? currentUserRole());
 }
 
-// Puede eliminar tickets: admin, project_manager
 function canDeleteTickets(?string $userRole = null): bool {
-    $role = $userRole ?? currentUserRole();
-    return in_array($role, ['admin', 'project_manager']);
+    return Permissions::canDeleteTickets($userRole ?? currentUserRole());
 }
 
-// Comprobar que una tarea pertenece al proyecto indicado (evita mezclar datos entre proyectos)
+function canCreateProjects(?string $userRole = null): bool {
+    return Permissions::canCreateProjects($userRole ?? currentUserRole());
+}
+
+function canDeleteProjects(?string $userRole = null): bool {
+    return Permissions::canDeleteProjects($userRole ?? currentUserRole());
+}
+
+// Pertenencia a proyecto (evita mezclar datos entre proyectos)
 function taskBelongsToProject(int $taskId, int $projectId): bool {
-    $stmt = getDB()->prepare("SELECT 1 FROM tasks WHERE id = ? AND project_id = ?");
-    $stmt->execute([$taskId, $projectId]);
-    return (bool)$stmt->fetchColumn();
+    return projectRepository()->taskBelongsTo($taskId, $projectId);
 }
 
-// Comprobar que una carpeta pertenece al proyecto indicado
 function folderBelongsToProject(int $folderId, int $projectId): bool {
-    $stmt = getDB()->prepare("SELECT 1 FROM project_folders WHERE id = ? AND project_id = ?");
-    $stmt->execute([$folderId, $projectId]);
-    return (bool)$stmt->fetchColumn();
+    return projectRepository()->folderBelongsTo($folderId, $projectId);
 }
 
 // Nombre del usuario si puede ser responsable de tareas del proyecto (miembro o propietario); null si no
 function projectAssigneeName(int $userId, int $projectId): ?string {
-    $stmt = getDB()->prepare("
-        SELECT u.name FROM users u
-        WHERE u.id = ?
-          AND (u.id IN (SELECT user_id FROM project_members WHERE project_id = ?)
-               OR u.id = (SELECT user_id FROM projects WHERE id = ?))
-    ");
-    $stmt->execute([$userId, $projectId, $projectId]);
-    $name = $stmt->fetchColumn();
-    return $name === false ? null : $name;
+    return projectRepository()->assigneeName($userId, $projectId);
 }
 
 // Validar URL externa: solo http/https (bloquea javascript:, data:, etc.)
 function isSafeUrl(string $url): bool {
-    if (!filter_var($url, FILTER_VALIDATE_URL)) {
-        return false;
-    }
-    $scheme = strtolower((string)parse_url($url, PHP_URL_SCHEME));
-    return in_array($scheme, ['http', 'https'], true);
+    return UrlValidator::isSafe($url);
 }
 
-// Extensiones permitidas para adjuntos (lista blanca)
-const ALLOWED_ATTACHMENT_EXTENSIONS = [
-    'pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'odt', 'ods', 'odp',
-    'txt', 'csv', 'md', 'rtf',
-    'jpg', 'jpeg', 'png', 'gif', 'webp',
-    'zip', 'rar', '7z',
-    'mp3', 'mp4', 'mov', 'webm',
-    'fig', 'psd', 'ai', 'sketch',
-];
+const ALLOWED_ATTACHMENT_EXTENSIONS = AttachmentStorage::ALLOWED_EXTENSIONS;
+const ALLOWED_IMAGE_MIMES = AttachmentStorage::IMAGE_MIMES;
 
-// Tipos MIME reales permitidos para imágenes (comentarios / logo)
-const ALLOWED_IMAGE_MIMES = [
-    'image/jpeg' => 'jpg',
-    'image/png'  => 'png',
-    'image/gif'  => 'gif',
-    'image/webp' => 'webp',
-];
-
-// Detectar el tipo MIME real del archivo a partir de su contenido
 function detectMime(string $path): string {
-    $finfo = new finfo(FILEINFO_MIME_TYPE);
-    return $finfo->file($path) ?: 'application/octet-stream';
+    return AttachmentStorage::detectMime($path);
 }
 
-/**
- * Valida y guarda un adjunto subido en uploads/.
- * Devuelve ['ok' => true, 'stored_name', 'original_name', 'size', 'mime'] o ['ok' => false, 'error'].
- */
-function storeUploadedAttachment(array $file, int $maxBytes = 20 * 1024 * 1024): array {
-    if (($file['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK || !is_uploaded_file($file['tmp_name'])) {
-        return ['ok' => false, 'error' => 'Error al recibir el archivo. Asegúrate de que no exceda el límite permitido.'];
-    }
-    if ($file['size'] > $maxBytes) {
-        return ['ok' => false, 'error' => 'El archivo no debe superar los ' . formatBytes($maxBytes) . '.'];
-    }
-
-    $origName = basename($file['name']);
-    $ext = strtolower(pathinfo($origName, PATHINFO_EXTENSION));
-    if (!in_array($ext, ALLOWED_ATTACHMENT_EXTENSIONS, true)) {
-        return ['ok' => false, 'error' => 'Tipo de archivo no permitido.'];
-    }
-
-    $mime = detectMime($file['tmp_name']);
-    // Bloquear contenido ejecutable o interpretable por el navegador aunque se disfrace con otra extensión
-    if (preg_match('#^(text/html|application/xhtml|image/svg|application/x-(php|httpd-php|sh|executable|msdownload))#', $mime)) {
-        return ['ok' => false, 'error' => 'El contenido del archivo no está permitido.'];
-    }
-
-    $uploadDir = dirname(__DIR__) . '/uploads/';
-    if (!is_dir($uploadDir)) {
-        mkdir($uploadDir, 0755, true);
-    }
-
-    $storedName = bin2hex(random_bytes(16)) . '.' . $ext;
-    if (!move_uploaded_file($file['tmp_name'], $uploadDir . $storedName)) {
-        return ['ok' => false, 'error' => 'No se pudo guardar el archivo en el servidor.'];
-    }
-
-    return ['ok' => true, 'stored_name' => $storedName, 'original_name' => $origName, 'size' => (int)$file['size'], 'mime' => $mime];
-}
-
-// Puede crear proyectos: admin, project_manager
-function canCreateProjects(?string $userRole = null): bool {
-    $role = $userRole ?? currentUserRole();
-    return in_array($role, ['admin', 'project_manager']);
-}
-
-// Puede eliminar proyectos: solo admin o creador con rol project_manager
-function canDeleteProjects(?string $userRole = null): bool {
-    $role = $userRole ?? currentUserRole();
-    return in_array($role, ['admin', 'project_manager']);
+// Valida y guarda un adjunto subido en uploads/ (ver App\Upload\AttachmentStorage::store)
+function storeUploadedAttachment(array $file, int $maxBytes = AttachmentStorage::DEFAULT_MAX_BYTES): array {
+    return (new AttachmentStorage(dirname(__DIR__) . '/uploads/'))->store($file, $maxBytes);
 }
 
 // Badge visual para renderizar en UI
@@ -368,74 +264,36 @@ function getFlash(): ?array {
     return null;
 }
 
-// Generación y verificación de Tokens CSRF
+// Tokens CSRF (ver App\Security\Csrf)
 function csrf_token(): string {
-    if (empty($_SESSION['csrf_token'])) {
-        $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
-    }
-    return $_SESSION['csrf_token'];
+    return Csrf::token();
 }
 
 function verify_csrf(?string $token): bool {
-    return !empty($token) && !empty($_SESSION['csrf_token']) && hash_equals($_SESSION['csrf_token'], $token);
+    return Csrf::verify($token);
 }
 
-// Limitación de intentos de inicio de sesión (fuerza bruta)
-const LOGIN_MAX_ATTEMPTS = 5;
-const LOGIN_WINDOW_MINUTES = 15;
+// Limitación de intentos de inicio de sesión (ver App\Security\LoginThrottle)
+function loginThrottle(): LoginThrottle {
+    static $throttle = null;
+    return $throttle ??= new LoginThrottle(getDB());
+}
 
 function isLoginThrottled(string $email, string $ip): bool {
-    try {
-        $stmt = getDB()->prepare("
-            SELECT
-                SUM(email = ?) AS by_email,
-                SUM(ip_address = ?) AS by_ip
-            FROM login_attempts
-            WHERE attempted_at > (NOW() - INTERVAL " . LOGIN_WINDOW_MINUTES . " MINUTE)
-              AND (email = ? OR ip_address = ?)
-        ");
-        $stmt->execute([$email, $ip, $email, $ip]);
-        $row = $stmt->fetch();
-        // Por IP se permite más margen (varios usuarios tras la misma red)
-        return (int)$row['by_email'] >= LOGIN_MAX_ATTEMPTS || (int)$row['by_ip'] >= LOGIN_MAX_ATTEMPTS * 4;
-    } catch (Exception $e) {
-        error_log('login_attempts no disponible: ' . $e->getMessage());
-        return false;
-    }
+    return loginThrottle()->isThrottled($email, $ip);
 }
 
 function recordFailedLogin(string $email, string $ip): void {
-    try {
-        $db = getDB();
-        $db->prepare("INSERT INTO login_attempts (email, ip_address) VALUES (?, ?)")->execute([$email, $ip]);
-        // Limpieza ocasional de registros antiguos
-        if (random_int(1, 50) === 1) {
-            $db->exec("DELETE FROM login_attempts WHERE attempted_at < (NOW() - INTERVAL 1 DAY)");
-        }
-    } catch (Exception $e) {
-        error_log('login_attempts no disponible: ' . $e->getMessage());
-    }
+    loginThrottle()->recordFailure($email, $ip);
 }
 
 function clearLoginAttempts(string $email): void {
-    try {
-        getDB()->prepare("DELETE FROM login_attempts WHERE email = ?")->execute([$email]);
-    } catch (Exception $e) {
-        error_log('login_attempts no disponible: ' . $e->getMessage());
-    }
+    loginThrottle()->clear($email);
 }
 
 // Paginación: calcula la página actual (?page=N), el offset y el total de páginas
 function paginate(int $totalItems, int $perPage = 25): array {
-    $totalPages = max(1, (int)ceil($totalItems / $perPage));
-    $page = min(max(1, (int)($_GET['page'] ?? 1)), $totalPages);
-    return [
-        'page'        => $page,
-        'per_page'    => $perPage,
-        'offset'      => ($page - 1) * $perPage,
-        'total'       => $totalItems,
-        'total_pages' => $totalPages,
-    ];
+    return Paginator::paginate($totalItems, $perPage, (int)($_GET['page'] ?? 1));
 }
 
 // URL de la página actual cambiando solo el número de página (conserva filtros)
@@ -443,24 +301,13 @@ function pageUrl(int $page): string {
     return '?' . http_build_query(array_merge($_GET, ['page' => $page]));
 }
 
-// Formateo de fechas a formato amigable en español
+// Formateo de fechas y tamaños (ver App\Support\Format)
 function formatDate(?string $date, bool $withTime = false): string {
-    if (!$date) return 'Sin fecha';
-    $timestamp = strtotime($date);
-    if ($withTime) {
-        return date('d M, Y - h:i A', $timestamp);
-    }
-    return date('d M, Y', $timestamp);
+    return Format::date($date, $withTime);
 }
 
-// Formateo de tamaño de archivo (bytes a KB, MB)
 function formatBytes(int $bytes, int $precision = 1): string {
-    $units = ['B', 'KB', 'MB', 'GB'];
-    $bytes = max($bytes, 0);
-    $pow = floor(($bytes ? log($bytes) : 0) / log(1024));
-    $pow = min($pow, count($units) - 1);
-    $bytes /= pow(1024, $pow);
-    return round($bytes, $precision) . ' ' . $units[$pow];
+    return Format::bytes($bytes, $precision);
 }
 
 // Configuración Global y Logo de la Aplicación
