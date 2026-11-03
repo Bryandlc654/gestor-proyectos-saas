@@ -1,14 +1,14 @@
     </div><!-- Cierre de flex h-screen -->
 
     <!-- Modal Global: Crear Proyecto -->
-    <div id="create-project-modal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs hidden transition-opacity">
+    <div id="create-project-modal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs hidden transition-opacity">
         <div class="bg-white rounded-2xl max-w-lg w-full shadow-2xl border border-slate-100 overflow-hidden transform transition-all">
             <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
                 <div class="flex items-center gap-2.5">
                     <div class="w-8 h-8 rounded-lg bg-brand-50 text-brand-600 flex items-center justify-center">
                         <i data-lucide="folder-plus" class="w-4 h-4"></i>
                     </div>
-                    <h3 class="font-display font-bold text-slate-800 text-base">Crear Nuevo Proyecto</h3>
+                    <h3 class="font-display font-semibold text-slate-800 text-base">Crear Nuevo Proyecto</h3>
                 </div>
                 <button type="button" onclick="closeModal('create-project-modal')" class="text-slate-400 hover:text-slate-600 p-1 rounded-lg">
                     <i data-lucide="x" class="w-5 h-5"></i>
@@ -20,18 +20,18 @@
                 <input type="hidden" name="csrf_token" value="<?= csrf_token() ?>">
 
                 <div>
-                    <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">Nombre del Proyecto *</label>
+                    <label class="block text-xs font-medium text-slate-700 mb-1.5">Nombre del Proyecto *</label>
                     <input type="text" name="name" required placeholder="Ej: Rediseño Sitio Web 2026" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent transition">
                 </div>
 
                 <div>
-                    <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">Descripción</label>
+                    <label class="block text-xs font-medium text-slate-700 mb-1.5">Descripción</label>
                     <textarea name="description" rows="2" placeholder="Objetivos y alcance general del proyecto..." class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent transition"></textarea>
                 </div>
 
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
-                        <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">Categoría</label>
+                        <label class="block text-xs font-medium text-slate-700 mb-1.5">Categoría</label>
                         <select name="category" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 bg-white">
                             <option value="Desarrollo Web">Desarrollo Web</option>
                             <option value="Diseño UI/UX">Diseño UI/UX</option>
@@ -42,18 +42,18 @@
                         </select>
                     </div>
                     <div>
-                        <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">Fecha Límite</label>
+                        <label class="block text-xs font-medium text-slate-700 mb-1.5">Fecha Límite</label>
                         <input type="date" name="deadline" class="w-full px-3.5 py-2 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 bg-white">
                     </div>
                 </div>
 
                 <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     <div class="sm:col-span-2">
-                        <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">Costo / Presupuesto Total</label>
+                        <label class="block text-xs font-medium text-slate-700 mb-1.5">Costo / Presupuesto Total</label>
                         <input type="number" step="0.01" min="0" name="budget" placeholder="0.00" class="w-full px-3.5 py-2 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 bg-white font-semibold">
                     </div>
                     <div>
-                        <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">Moneda</label>
+                        <label class="block text-xs font-medium text-slate-700 mb-1.5">Moneda</label>
                         <select name="currency" class="w-full px-3.5 py-2 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 bg-white font-mono">
                             <option value="USD">USD ($)</option>
                             <option value="EUR">EUR (€)</option>
@@ -66,7 +66,7 @@
                 </div>
 
                 <div>
-                    <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">Color de Identidad</label>
+                    <label class="block text-xs font-medium text-slate-700 mb-1.5">Color de Identidad</label>
                     <div class="flex items-center gap-3">
                         <label class="cursor-pointer">
                             <input type="radio" name="color" value="#4F46E5" class="sr-only peer" checked>

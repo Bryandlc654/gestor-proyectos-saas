@@ -10,7 +10,7 @@ $prioClass = match($task['priority']) {
 <div id="kanban-card-<?= $task['id'] ?>" class="bg-white rounded-2xl border border-slate-200/80 p-4 shadow-2xs hover:shadow-sm hover:border-slate-300 transition-all flex flex-col justify-between group cursor-pointer" onclick="openTaskDetailModal(<?= $task['id'] ?>)">
     <div>
         <div class="flex items-center justify-between gap-2 mb-2.5" onclick="event.stopPropagation()">
-            <span class="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md border <?= $prioClass ?>">
+            <span class="text-[11px] font-medium capitalize px-2 py-0.5 rounded-full <?= $prioClass ?>">
                 <?= e($task['priority']) ?>
             </span>
 

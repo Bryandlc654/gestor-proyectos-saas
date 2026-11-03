@@ -231,12 +231,12 @@ $completionRate = $totalTasks > 0 ? round(($completedTasks / $totalTasks) * 100)
 $chartTasksData = [
     'labels' => ['Pendientes', 'En Curso', 'Completadas'],
     'data'   => [$pendingTasks, $inProgressTasks, $completedTasks],
-    'colors' => ['#94A3B8', '#F59E0B', '#10B981']
+    'colors' => ['#CBD5E1', '#A5B4FC', '#4F46E5']
 ];
 
 // 2. Prioridades de tareas
 $prioLabels = ['baja' => 'Baja', 'media' => 'Media', 'alta' => 'Alta', 'urgente' => 'Urgente'];
-$prioColors = ['baja' => '#94A3B8', 'media' => '#6366F1', 'alta' => '#F59E0B', 'urgente' => '#EF4444'];
+$prioColors = ['baja' => '#CBD5E1', 'media' => '#A5B4FC', 'alta' => '#6366F1', 'urgente' => '#F43F5E'];
 $chartPrioLabels = [];
 $chartPrioData = [];
 $chartPrioColors = [];
@@ -278,23 +278,20 @@ require_once __DIR__ . '/includes/sidebar.php';
 ?>
 
 <!-- Contenido Principal -->
-<main class="flex-1 flex flex-col min-w-0 bg-[#F8FAFC] overflow-y-auto">
+<main class="flex-1 flex flex-col min-w-0 bg-slate-50 overflow-y-auto">
     <!-- Barra Superior -->
-    <header class="min-h-[4.5rem] sm:min-h-[5rem] py-4 sm:py-5 bg-white border-b border-slate-200/80 px-6 sm:px-10 flex items-center justify-between sticky top-0 z-10">
+    <header class="h-16 flex-shrink-0 bg-white/90 backdrop-blur border-b border-slate-200/70 px-4 sm:px-8 flex items-center justify-between gap-3 sticky top-0 z-10">
         <div class="flex items-center gap-3">
-            <button onclick="toggleSidebar()" class="p-2 -ml-2 rounded-xl text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition" title="Alternar menú lateral">
+            <button onclick="toggleSidebar()" class="p-1.5 -ml-1.5 rounded-md text-slate-400 hover:text-slate-900 hover:bg-slate-100 transition" title="Alternar menú lateral">
                 <i data-lucide="menu" class="w-5 h-5"></i>
             </button>
             <div>
-                <h1 class="font-display font-bold text-lg sm:text-xl text-slate-900 tracking-tight">Estadísticas & Métricas</h1>
+                <h1 class="font-semibold text-base sm:text-lg text-slate-900 tracking-tight">Dashboard</h1>
             </div>
         </div>
 
         <div class="flex items-center gap-2.5">
-            <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200/50">
-                <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                <span>Datos en Tiempo Real</span>
-            </span>
+            <span class="hidden sm:inline text-sm text-slate-400"><?= e(formatDate(date('Y-m-d'))) ?></span>
         </div>
     </header>
 
@@ -340,13 +337,13 @@ require_once __DIR__ . '/includes/sidebar.php';
                 <!-- 1. Total Proyectos -->
                 <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-2xs space-y-3">
                     <div class="flex items-center justify-between">
-                        <span class="text-[11px] font-bold uppercase tracking-wider text-slate-400">Proyectos Activos</span>
-                        <div class="w-8 h-8 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center">
+                        <span class="text-xs font-medium text-slate-500">Proyectos activos</span>
+                        <div class="w-8 h-8 rounded-lg bg-slate-50 text-slate-400 flex items-center justify-center">
                             <i data-lucide="folder-kanban" class="w-4 h-4"></i>
                         </div>
                     </div>
                     <div class="flex items-baseline justify-between">
-                        <span class="text-3xl font-display font-black text-slate-900"><?= $totalProjects ?></span>
+                        <span class="text-[28px] leading-none font-semibold tracking-tight text-slate-900"><?= $totalProjects ?></span>
                         <span class="text-xs text-slate-400 font-medium">monitoreados</span>
                     </div>
                 </div>
@@ -354,13 +351,13 @@ require_once __DIR__ . '/includes/sidebar.php';
                 <!-- 2. Tasa de Finalización -->
                 <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-2xs space-y-3">
                     <div class="flex items-center justify-between">
-                        <span class="text-[11px] font-bold uppercase tracking-wider text-slate-400">Efectividad Tareas</span>
-                        <div class="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
+                        <span class="text-xs font-medium text-slate-500">Tareas completadas</span>
+                        <div class="w-8 h-8 rounded-lg bg-slate-50 text-slate-400 flex items-center justify-center">
                             <i data-lucide="trending-up" class="w-4 h-4"></i>
                         </div>
                     </div>
                     <div class="flex items-baseline justify-between">
-                        <span class="text-3xl font-display font-black text-emerald-600"><?= $completionRate ?>%</span>
+                        <span class="text-[28px] leading-none font-semibold tracking-tight text-slate-900"><?= $completionRate ?>%</span>
                         <span class="text-xs text-slate-400 font-medium"><?= $completedTasks ?> de <?= $totalTasks ?></span>
                     </div>
                 </div>
@@ -368,13 +365,13 @@ require_once __DIR__ . '/includes/sidebar.php';
                 <!-- 3. Tareas en Curso -->
                 <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-2xs space-y-3">
                     <div class="flex items-center justify-between">
-                        <span class="text-[11px] font-bold uppercase tracking-wider text-slate-400">En Ejecución</span>
-                        <div class="w-8 h-8 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center">
+                        <span class="text-xs font-medium text-slate-500">En curso</span>
+                        <div class="w-8 h-8 rounded-lg bg-slate-50 text-slate-400 flex items-center justify-center">
                             <i data-lucide="activity" class="w-4 h-4"></i>
                         </div>
                     </div>
                     <div class="flex items-baseline justify-between">
-                        <span class="text-3xl font-display font-black text-amber-600"><?= $inProgressTasks ?></span>
+                        <span class="text-[28px] leading-none font-semibold tracking-tight text-slate-900"><?= $inProgressTasks ?></span>
                         <span class="text-xs text-slate-400 font-medium"><?= $pendingTasks ?> en cola</span>
                     </div>
                 </div>
@@ -382,13 +379,13 @@ require_once __DIR__ . '/includes/sidebar.php';
                 <!-- 4. Tickets de Soporte -->
                 <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-2xs space-y-3">
                     <div class="flex items-center justify-between">
-                        <span class="text-[11px] font-bold uppercase tracking-wider text-slate-400">Tickets Pendientes</span>
-                        <div class="w-8 h-8 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center">
+                        <span class="text-xs font-medium text-slate-500">Tickets abiertos</span>
+                        <div class="w-8 h-8 rounded-lg bg-slate-50 text-slate-400 flex items-center justify-center">
                             <i data-lucide="life-buoy" class="w-4 h-4"></i>
                         </div>
                     </div>
                     <div class="flex items-baseline justify-between">
-                        <span class="text-3xl font-display font-black <?= $openTickets > 0 ? 'text-rose-600' : 'text-slate-900' ?>"><?= $openTickets ?></span>
+                        <span class="text-[28px] leading-none font-semibold tracking-tight text-slate-900"><?= $openTickets ?></span>
                         <span class="text-xs text-slate-400 font-medium"><?= $resolvedTickets ?> resueltos</span>
                     </div>
                 </div>
@@ -399,36 +396,36 @@ require_once __DIR__ . '/includes/sidebar.php';
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div class="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200/80 shadow-2xs flex items-center justify-between">
                 <div>
-                    <span class="text-[11px] font-bold uppercase tracking-wider text-slate-400 block mb-1">Presupuesto Global</span>
-                    <span class="text-xl sm:text-2xl font-display font-black text-slate-900">
+                    <span class="text-xs font-medium text-slate-500 block mb-1">Presupuesto total</span>
+                    <span class="text-xl sm:text-2xl font-semibold tracking-tight text-slate-900">
                         USD $<?= number_format(floatval($financialStats['total_budget']), 2) ?>
                     </span>
                 </div>
-                <div class="w-10 h-10 rounded-xl bg-slate-50 text-slate-600 flex items-center justify-center">
+                <div class="w-10 h-10 rounded-lg bg-slate-50 text-slate-400 flex items-center justify-center">
                     <i data-lucide="wallet" class="w-5 h-5"></i>
                 </div>
             </div>
 
             <div class="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200/80 shadow-2xs flex items-center justify-between">
                 <div>
-                    <span class="text-[11px] font-bold uppercase tracking-wider text-slate-400 block mb-1">Monto Cobrado</span>
-                    <span class="text-xl sm:text-2xl font-display font-black text-emerald-600">
+                    <span class="text-xs font-medium text-slate-500 block mb-1">Cobrado</span>
+                    <span class="text-xl sm:text-2xl font-semibold tracking-tight text-slate-900">
                         USD $<?= number_format(floatval($financialStats['total_collected']), 2) ?>
                     </span>
                 </div>
-                <div class="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
+                <div class="w-10 h-10 rounded-lg bg-slate-50 text-slate-400 flex items-center justify-center">
                     <i data-lucide="badge-check" class="w-5 h-5"></i>
                 </div>
             </div>
 
             <div class="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200/80 shadow-2xs flex items-center justify-between">
                 <div>
-                    <span class="text-[11px] font-bold uppercase tracking-wider text-slate-400 block mb-1">Pendiente de Cobro</span>
-                    <span class="text-xl sm:text-2xl font-display font-black text-amber-600">
+                    <span class="text-xs font-medium text-slate-500 block mb-1">Pendiente de cobro</span>
+                    <span class="text-xl sm:text-2xl font-semibold tracking-tight text-slate-900">
                         USD $<?= number_format(floatval($financialStats['total_pending']), 2) ?>
                     </span>
                 </div>
-                <div class="w-10 h-10 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center">
+                <div class="w-10 h-10 rounded-lg bg-slate-50 text-slate-400 flex items-center justify-center">
                     <i data-lucide="clock" class="w-5 h-5"></i>
                 </div>
             </div>
@@ -441,27 +438,24 @@ require_once __DIR__ . '/includes/sidebar.php';
             <!-- Gráfico 1: Desglose de Estado de Tareas (Doughnut) -->
             <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-2xs flex flex-col justify-between">
                 <div class="flex items-center justify-between mb-4">
-                    <h3 class="font-display font-bold text-sm text-slate-900 flex items-center gap-2">
-                        <i data-lucide="pie-chart" class="w-4 h-4 text-brand-600"></i>
-                        <span>Estado de Tareas</span>
-                    </h3>
-                    <span class="text-xs font-semibold text-slate-400"><?= $totalTasks ?> totales</span>
+                    <h3 class="font-medium text-sm text-slate-900">Estado de tareas</h3>
+                    <span class="text-xs text-slate-400"><?= $totalTasks ?> totales</span>
                 </div>
                 <div class="relative flex items-center justify-center h-56">
                     <canvas id="tasksStatusChart"></canvas>
                 </div>
                 <div class="grid grid-cols-3 gap-2 pt-4 mt-3 border-t border-slate-100 text-center text-xs">
                     <div>
-                        <span class="text-[10px] text-slate-400 block uppercase font-semibold">Pendientes</span>
-                        <span class="font-bold text-slate-700"><?= $pendingTasks ?></span>
+                        <span class="text-[11px] text-slate-500 block font-medium">Pendientes</span>
+                        <span class="font-semibold text-slate-900"><?= $pendingTasks ?></span>
                     </div>
                     <div>
-                        <span class="text-[10px] text-slate-400 block uppercase font-semibold">En Curso</span>
-                        <span class="font-bold text-amber-600"><?= $inProgressTasks ?></span>
+                        <span class="text-[11px] text-slate-500 block font-medium">En curso</span>
+                        <span class="font-semibold text-slate-900"><?= $inProgressTasks ?></span>
                     </div>
                     <div>
-                        <span class="text-[10px] text-slate-400 block uppercase font-semibold">Completas</span>
-                        <span class="font-bold text-emerald-600"><?= $completedTasks ?></span>
+                        <span class="text-[11px] text-slate-500 block font-medium">Completas</span>
+                        <span class="font-semibold text-slate-900"><?= $completedTasks ?></span>
                     </div>
                 </div>
             </div>
@@ -469,11 +463,8 @@ require_once __DIR__ . '/includes/sidebar.php';
             <!-- Gráfico 2: Carga de Tareas por Nivel de Prioridad (Bar) -->
             <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-2xs flex flex-col justify-between">
                 <div class="flex items-center justify-between mb-4">
-                    <h3 class="font-display font-bold text-sm text-slate-900 flex items-center gap-2">
-                        <i data-lucide="bar-chart-2" class="w-4 h-4 text-indigo-600"></i>
-                        <span>Tareas por Prioridad</span>
-                    </h3>
-                    <span class="text-xs font-semibold text-slate-400">Distribución</span>
+                    <h3 class="font-medium text-sm text-slate-900">Tareas por prioridad</h3>
+                    <span class="text-xs text-slate-400">Distribución</span>
                 </div>
                 <div class="relative flex items-center justify-center h-56">
                     <canvas id="tasksPriorityChart"></canvas>
@@ -481,8 +472,8 @@ require_once __DIR__ . '/includes/sidebar.php';
                 <div class="flex items-center justify-around pt-4 mt-3 border-t border-slate-100 text-center text-xs">
                     <?php foreach ($chartPrioLabels as $idx => $pl): ?>
                         <div>
-                            <span class="text-[10px] text-slate-400 block uppercase font-semibold"><?= $pl ?></span>
-                            <span class="font-bold text-slate-800"><?= $chartPrioData[$idx] ?></span>
+                            <span class="text-[11px] text-slate-500 block font-medium"><?= $pl ?></span>
+                            <span class="font-semibold text-slate-900"><?= $chartPrioData[$idx] ?></span>
                         </div>
                     <?php endforeach; ?>
                 </div>
@@ -491,11 +482,8 @@ require_once __DIR__ . '/includes/sidebar.php';
             <!-- Gráfico 3: Proyectos por Categoría (Polar/Doughnut) -->
             <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-2xs flex flex-col justify-between">
                 <div class="flex items-center justify-between mb-4">
-                    <h3 class="font-display font-bold text-sm text-slate-900 flex items-center gap-2">
-                        <i data-lucide="layers" class="w-4 h-4 text-purple-600"></i>
-                        <span>Categorías de Proyecto</span>
-                    </h3>
-                    <span class="text-xs font-semibold text-slate-400"><?= count($chartCatLabels) ?> ramas</span>
+                    <h3 class="font-medium text-sm text-slate-900">Categorías de proyecto</h3>
+                    <span class="text-xs text-slate-400"><?= count($chartCatLabels) ?> categorías</span>
                 </div>
                 <div class="relative flex items-center justify-center h-56">
                     <?php if (empty($chartCatLabels)): ?>
@@ -505,7 +493,7 @@ require_once __DIR__ . '/includes/sidebar.php';
                     <?php endif; ?>
                 </div>
                 <div class="pt-4 mt-3 border-t border-slate-100 text-center text-xs text-slate-500">
-                    Clasificación de áreas de trabajo activas
+                    Proyectos agrupados por categoría
                 </div>
             </div>
         </div>
@@ -514,18 +502,15 @@ require_once __DIR__ . '/includes/sidebar.php';
         <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-2xs space-y-4">
             <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                 <div>
-                    <h3 class="font-display font-bold text-base text-slate-900 flex items-center gap-2">
-                        <i data-lucide="kanban" class="w-4 h-4 text-brand-600"></i>
-                        <span>Progreso de Tareas por Proyecto</span>
-                    </h3>
+                    <h3 class="font-medium text-sm text-slate-900">Progreso por proyecto</h3>
                     <p class="text-xs text-slate-400">Comparativa de tareas completadas frente a pendientes</p>
                 </div>
                 <div class="flex items-center gap-4 text-xs">
                     <span class="flex items-center gap-1.5 text-slate-600">
-                        <span class="w-2.5 h-2.5 rounded bg-emerald-500"></span> Completadas
+                        <span class="w-2 h-2 rounded-full bg-brand-600"></span> Completadas
                     </span>
                     <span class="flex items-center gap-1.5 text-slate-600">
-                        <span class="w-2.5 h-2.5 rounded bg-slate-300"></span> Pendientes
+                        <span class="w-2 h-2 rounded-full bg-slate-200"></span> Pendientes
                     </span>
                 </div>
             </div>
@@ -549,6 +534,15 @@ require_once __DIR__ . '/includes/sidebar.php';
 <!-- Inicialización de Gráficos con Chart.js -->
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    // Estilo base común: tipografía de la app, texto gris y leyendas con puntos
+    Chart.defaults.font.family = 'Inter, system-ui, sans-serif';
+    Chart.defaults.color = '#64748B';
+    Chart.defaults.plugins.legend.labels.usePointStyle = true;
+    Chart.defaults.plugins.legend.labels.pointStyle = 'circle';
+    Chart.defaults.plugins.tooltip.backgroundColor = '#0F172A';
+    Chart.defaults.plugins.tooltip.padding = 10;
+    Chart.defaults.plugins.tooltip.cornerRadius = 6;
+
     // 1. Gráfico Estado de Tareas (Doughnut)
     const ctxTasks = document.getElementById('tasksStatusChart');
     if (ctxTasks) {
@@ -573,7 +567,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         labels: { boxWidth: 10, font: { size: 11, family: 'Inter' } }
                     }
                 },
-                cutout: '70%'
+                cutout: '76%'
             }
         });
     }
@@ -588,8 +582,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 datasets: [{
                     data: <?= json_encode($chartPrioData, JSON_SCRIPT_FLAGS) ?>,
                     backgroundColor: <?= json_encode($chartPrioColors, JSON_SCRIPT_FLAGS) ?>,
-                    borderRadius: 8,
-                    barThickness: 28
+                    borderRadius: 4,
+                    barThickness: 20
                 }]
             },
             options: {
@@ -622,7 +616,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 labels: <?= json_encode($chartCatLabels, JSON_SCRIPT_FLAGS) ?>,
                 datasets: [{
                     data: <?= json_encode($chartCatData, JSON_SCRIPT_FLAGS) ?>,
-                    backgroundColor: ['#6366F1', '#3B82F6', '#10B981', '#EC4899', '#8B5CF6', '#F59E0B'],
+                    backgroundColor: ['#4F46E5', '#818CF8', '#C7D2FE', '#64748B', '#94A3B8', '#CBD5E1'],
                     borderWidth: 2,
                     borderColor: '#ffffff'
                 }]
@@ -636,7 +630,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         labels: { boxWidth: 10, font: { size: 11, family: 'Inter' } }
                     }
                 },
-                cutout: '65%'
+                cutout: '76%'
             }
         });
     }
@@ -652,14 +646,14 @@ document.addEventListener('DOMContentLoaded', function() {
                     {
                         label: 'Completadas',
                         data: <?= json_encode($chartProjCompleted, JSON_SCRIPT_FLAGS) ?>,
-                        backgroundColor: '#10B981',
+                        backgroundColor: '#4F46E5',
                         borderRadius: 6,
                         stack: 'tasksStack'
                     },
                     {
                         label: 'Pendientes',
                         data: <?= json_encode($chartProjPending, JSON_SCRIPT_FLAGS) ?>,
-                        backgroundColor: '#CBD5E1',
+                        backgroundColor: '#E2E8F0',
                         borderRadius: 6,
                         stack: 'tasksStack'
                     }

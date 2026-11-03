@@ -81,24 +81,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     
     <!-- Estilos compilados con Tailwind (npm run build:css) -->
     <link rel="stylesheet" href="assets/css/app.css?v=<?= @filemtime(__DIR__ . '/assets/css/app.css') ?: 1 ?>">
     <script src="https://unpkg.com/lucide@1.59.0/dist/umd/lucide.min.js" integrity="sha384-4VQAGBhahgTiMVvXUqbh6qcs45zGzR/8znv7XORRfWkxZfzRbhLL5Uh+fSdvdqdM" crossorigin="anonymous"></script>
 </head>
-<body class="min-h-full flex items-center justify-center p-4 selection:bg-brand-500 selection:text-white bg-radial from-slate-50 via-indigo-50/20 to-slate-100">
+<body class="min-h-full flex items-center justify-center p-4 bg-slate-50">
 
-    <div class="max-w-md w-full space-y-6">
+    <div class="max-w-sm w-full space-y-6">
         <div class="text-center">
-            <div class="inline-flex w-12 h-12 rounded-2xl bg-gradient-to-tr from-brand-600 to-indigo-400 items-center justify-center text-white shadow-lg shadow-brand-500/30 mb-3">
+            <div class="inline-flex w-10 h-10 rounded-xl items-center justify-center text-white mb-4 bg-slate-900">
                 <i data-lucide="user-plus" class="w-6 h-6"></i>
             </div>
-            <h1 class="font-display font-extrabold text-2xl sm:text-3xl text-slate-900 tracking-tight">Crear una Cuenta</h1>
+            <h1 class="font-semibold text-xl sm:text-2xl text-slate-900 tracking-tight">Crear una cuenta</h1>
             <p class="text-sm text-slate-500 mt-1">Comienza a organizar tus proyectos y equipos hoy</p>
         </div>
 
-        <div class="bg-white rounded-3xl shadow-xl shadow-slate-200/60 border border-slate-100 p-8 sm:p-10">
+        <div class="bg-white rounded-2xl shadow-sm border border-slate-200/70 p-6 sm:p-8">
             <?php if (!empty($error)): ?>
                 <div class="mb-5 flex items-center gap-3 p-3.5 bg-rose-50 border border-rose-200 text-rose-700 rounded-xl text-xs sm:text-sm">
                     <i data-lucide="alert-circle" class="w-5 h-5 flex-shrink-0"></i>
@@ -110,26 +110,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <input type="hidden" name="csrf_token" value="<?= csrf_token() ?>">
 
                 <div>
-                    <label class="block text-xs font-semibold uppercase tracking-wider text-slate-700 mb-1.5">Nombre Completo</label>
+                    <label class="block text-sm font-medium text-slate-700 mb-1.5">Nombre completo</label>
                     <div class="relative">
                         <i data-lucide="user" class="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5"></i>
-                        <input type="text" name="name" value="<?= e($name) ?>" required placeholder="Carlos Mendoza" class="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent transition">
+                        <input type="text" name="name" value="<?= e($name) ?>" required placeholder="Carlos Mendoza" class="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 text-sm">
                     </div>
                 </div>
 
                 <div>
-                    <label class="block text-xs font-semibold uppercase tracking-wider text-slate-700 mb-1.5">Correo Electrónico</label>
+                    <label class="block text-sm font-medium text-slate-700 mb-1.5">Correo electrónico</label>
                     <div class="relative">
                         <i data-lucide="mail" class="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5"></i>
-                        <input type="email" name="email" value="<?= e($email) ?>" required placeholder="carlos@empresa.com" class="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent transition">
+                        <input type="email" name="email" value="<?= e($email) ?>" required placeholder="carlos@empresa.com" class="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 text-sm">
                     </div>
                 </div>
 
                 <div>
-                    <label class="block text-xs font-semibold uppercase tracking-wider text-slate-700 mb-1.5">Nivel de Acceso / Rol</label>
+                    <label class="block text-sm font-medium text-slate-700 mb-1.5">Nivel de Acceso / Rol</label>
                     <div class="relative">
                         <i data-lucide="badge-check" class="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5"></i>
-                        <select name="role" class="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent transition bg-white">
+                        <select name="role" class="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 text-sm bg-white">
                             <option value="colaborador" <?= $role === 'colaborador' ? 'selected' : '' ?>>Colaborador (gestionar tareas, comentarios y adjuntos)</option>
                             <option value="project_manager" <?= $role === 'project_manager' ? 'selected' : '' ?>>Project Manager (crear y gestionar proyectos completos)</option>
                             <option value="cliente" <?= $role === 'cliente' ? 'selected' : '' ?>>Cliente (seguimiento, solo lectura + tickets y feedback)</option>
@@ -138,23 +138,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 </div>
 
                 <div>
-                    <label class="block text-xs font-semibold uppercase tracking-wider text-slate-700 mb-1.5">Contraseña (mínimo 8 caracteres)</label>
+                    <label class="block text-sm font-medium text-slate-700 mb-1.5">Contraseña (mínimo 8 caracteres)</label>
                     <div class="relative">
                         <i data-lucide="lock" class="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5"></i>
-                        <input type="password" name="password" required placeholder="••••••••" class="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent transition">
+                        <input type="password" name="password" required placeholder="••••••••" class="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 text-sm">
                     </div>
                 </div>
 
                 <div>
-                    <label class="block text-xs font-semibold uppercase tracking-wider text-slate-700 mb-1.5">Confirmar Contraseña</label>
+                    <label class="block text-sm font-medium text-slate-700 mb-1.5">Confirmar contraseña</label>
                     <div class="relative">
                         <i data-lucide="shield-check" class="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5"></i>
-                        <input type="password" name="password_confirm" required placeholder="••••••••" class="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent transition">
+                        <input type="password" name="password_confirm" required placeholder="••••••••" class="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 text-sm">
                     </div>
                 </div>
 
                 <div class="pt-2">
-                    <button type="submit" class="w-full py-3 px-4 bg-brand-600 hover:bg-brand-700 text-white font-semibold text-sm rounded-xl shadow-md shadow-brand-500/25 transition-all transform active:scale-[0.99] flex items-center justify-center gap-2">
+                    <button type="submit" class="w-full py-2.5 px-4 bg-brand-600 hover:bg-brand-700 text-white font-medium text-sm rounded-xl transition-colors flex items-center justify-center gap-2">
                         <span>Registrarse Gratis</span>
                         <i data-lucide="arrow-right" class="w-4 h-4"></i>
                     </button>
@@ -164,7 +164,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         <p class="text-center text-sm text-slate-500">
             ¿Ya tienes una cuenta?
-            <a href="login.php" class="font-semibold text-brand-600 hover:text-brand-700 hover:underline">Inicia sesión</a>
+            <a href="login.php" class="font-medium text-slate-900 hover:underline underline-offset-4">Inicia sesión</a>
         </p>
     </div>
 

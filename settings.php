@@ -90,15 +90,15 @@ require_once __DIR__ . '/includes/sidebar.php';
 ?>
 
 <!-- Contenido Principal -->
-<main class="flex-1 flex flex-col min-w-0 bg-[#F8FAFC] overflow-y-auto">
+<main class="flex-1 flex flex-col min-w-0 bg-slate-50 overflow-y-auto">
     <!-- Barra Superior -->
-    <header class="min-h-[4.5rem] sm:min-h-[5rem] py-4 sm:py-5 bg-white border-b border-slate-200/80 px-6 sm:px-10 flex items-center justify-between sticky top-0 z-10">
+    <header class="h-16 flex-shrink-0 bg-white/90 backdrop-blur border-b border-slate-200/70 px-4 sm:px-8 flex items-center justify-between gap-3 sticky top-0 z-10">
         <div class="flex items-center gap-3">
-            <button onclick="toggleSidebar()" class="p-2 -ml-2 rounded-xl text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition" title="Alternar menú lateral">
+            <button onclick="toggleSidebar()" class="p-1.5 -ml-1.5 rounded-md text-slate-400 hover:text-slate-900 hover:bg-slate-100 transition" title="Alternar menú lateral">
                 <i data-lucide="menu" class="w-5 h-5"></i>
             </button>
             <div>
-                <h1 class="font-display font-bold text-lg sm:text-xl text-slate-900 tracking-tight">Configuración del Sistema</h1>
+                <h1 class="font-semibold text-base sm:text-lg text-slate-900 tracking-tight">Configuración</h1>
             </div>
         </div>
     </header>
@@ -113,7 +113,7 @@ require_once __DIR__ . '/includes/sidebar.php';
                         <i data-lucide="image" class="w-5 h-5"></i>
                     </div>
                     <div>
-                        <h3 class="font-display font-bold text-slate-900 text-base">Identidad de Marca & Logo</h3>
+                        <h3 class="font-display font-semibold text-slate-900 text-base">Identidad de Marca & Logo</h3>
                         <p class="text-xs text-slate-400">Personaliza el logo y nombre que se mostrarán en la barra lateral y en la pantalla de inicio de sesión</p>
                     </div>
                 </div>
@@ -125,7 +125,7 @@ require_once __DIR__ . '/includes/sidebar.php';
 
                 <!-- Vista Previa Actual del Logo -->
                 <div>
-                    <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-2">Vista Previa Actual</label>
+                    <label class="block text-xs font-medium text-slate-700 mb-2">Vista Previa Actual</label>
                     <div class="p-5 rounded-2xl bg-slate-50/70 border border-slate-200/80 flex flex-col sm:flex-row items-center justify-between gap-4">
                         <div class="flex items-center gap-3.5">
                             <?php if (!empty($currentLogo) && file_exists(__DIR__ . '/' . $currentLogo)): ?>
@@ -133,13 +133,13 @@ require_once __DIR__ . '/includes/sidebar.php';
                                     <img src="<?= e($currentLogo) ?>?v=<?= time() ?>" alt="Logo actual" class="max-h-full max-w-full object-contain">
                                 </div>
                             <?php else: ?>
-                                <div class="w-12 h-12 rounded-xl bg-gradient-to-tr from-brand-600 to-indigo-400 flex items-center justify-center text-white shadow-md shadow-brand-500/20 flex-shrink-0">
+                                <div class="w-12 h-12 rounded-xl flex items-center justify-center text-white flex-shrink-0 bg-slate-900">
                                     <i data-lucide="layers" class="w-6 h-6"></i>
                                 </div>
                             <?php endif; ?>
 
                             <div>
-                                <h4 class="font-display font-bold text-base text-slate-900">
+                                <h4 class="font-display font-semibold text-base text-slate-900">
                                     <?= e($appName) ?>
                                 </h4>
                                 <span class="text-xs text-slate-400">
@@ -159,13 +159,13 @@ require_once __DIR__ . '/includes/sidebar.php';
 
                 <!-- Nombre de la Aplicación -->
                 <div>
-                    <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">Nombre del Software / Empresa *</label>
+                    <label class="block text-xs font-medium text-slate-700 mb-1.5">Nombre del Software / Empresa *</label>
                     <input type="text" name="app_name" value="<?= e($appName) ?>" required placeholder="Ej: FlowTasks" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:ring-1 focus:ring-brand-500 bg-white">
                 </div>
 
                 <!-- Subir Nuevo Archivo de Logo -->
                 <div>
-                    <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">Subir Nuevo Logo</label>
+                    <label class="block text-xs font-medium text-slate-700 mb-1.5">Subir Nuevo Logo</label>
                     <div class="border-2 border-dashed border-slate-200 hover:border-brand-400 rounded-2xl p-6 text-center bg-slate-50/40 hover:bg-slate-50 transition cursor-pointer relative">
                         <input type="file" name="app_logo" id="logo-file-input" accept="image/png, image/jpeg, image/webp, image/gif" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer" onchange="previewLogo(this)">
                         

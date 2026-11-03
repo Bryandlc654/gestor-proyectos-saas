@@ -7,7 +7,7 @@
         <section id="tab-checklists" class="tab-content hidden space-y-5">
             <div class="flex items-center justify-between">
                 <div class="flex items-center gap-2">
-                    <h2 class="font-display font-bold text-base text-slate-900">Checklists</h2>
+                    <h2 class="font-display font-semibold text-base text-slate-900">Checklists</h2>
                     <span class="text-xs text-slate-400"><?= count($checklistsData) ?> listas</span>
                 </div>
                 <?php if ($canManageChecklists): ?>
@@ -37,7 +37,7 @@
                     <div id="checklist-card-<?= $chk['id'] ?>" class="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-2xs space-y-4">
                         <div class="flex items-start justify-between gap-3">
                             <div>
-                                <h3 class="font-display font-bold text-slate-900 text-sm sm:text-base"><?= e($chk['title']) ?></h3>
+                                <h3 class="font-display font-semibold text-slate-900 text-sm sm:text-base"><?= e($chk['title']) ?></h3>
                                 
                                 <!-- Vinculación con Tarea Principal -->
                                 <?php if (!empty($chk['task_id']) && !empty($chk['task_title'])): ?>

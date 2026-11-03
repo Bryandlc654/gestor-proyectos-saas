@@ -3,26 +3,75 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Base minimalista: tipografía, controles de formulario y foco coherentes en toda la app */
+@layer base {
+    html {
+        font-feature-settings: "cv11", "ss01";
+        -webkit-font-smoothing: antialiased;
+    }
+    h1, h2, h3, h4 {
+        letter-spacing: -0.015em;
+    }
+    ::selection {
+        background: theme('colors.brand.100');
+        color: theme('colors.slate.900');
+    }
+    input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="color"]):not([type="range"]),
+    select,
+    textarea {
+        border-color: theme('colors.slate.200');
+        transition: border-color .15s ease, box-shadow .15s ease;
+    }
+    input::placeholder,
+    textarea::placeholder {
+        color: theme('colors.slate.400');
+    }
+    input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):focus,
+    select:focus,
+    textarea:focus {
+        outline: none;
+        border-color: theme('colors.brand.500');
+        box-shadow: 0 0 0 3px rgb(99 102 241 / 0.12);
+    }
+    button:focus-visible,
+    a:focus-visible {
+        outline: 2px solid theme('colors.brand.500');
+        outline-offset: 2px;
+    }
+    input[type="checkbox"],
+    input[type="radio"] {
+        accent-color: theme('colors.brand.600');
+    }
+}
+
 /* Estilos propios (antes en <style> de includes/header.php) */
-/* Scrollbar estilizada */
+/* Scrollbar fina y discreta */
+* {
+    scrollbar-width: thin;
+    scrollbar-color: #d4d9e1 transparent;
+}
 ::-webkit-scrollbar {
     width: 6px;
     height: 6px;
 }
 ::-webkit-scrollbar-track {
-    background: #f1f5f9;
+    background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-    background: #cbd5e1;
+    background: #d4d9e1;
     border-radius: 9999px;
 }
 ::-webkit-scrollbar-thumb:hover {
     background: #94a3b8;
 }
 .tab-btn.active {
-    color: #4F46E5;
-    border-bottom: 2px solid #4F46E5;
-    font-weight: 600;
+    color: theme('colors.slate.900');
+    border-bottom: 2px solid theme('colors.slate.900');
+    font-weight: 500;
+}
+.tab-btn.active i,
+.tab-btn.active svg {
+    color: theme('colors.slate.900');
 }
 
 /* Animación Skeleton Loader Ultraligera */

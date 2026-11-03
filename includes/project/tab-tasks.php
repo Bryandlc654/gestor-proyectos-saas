@@ -6,7 +6,7 @@
         <section id="tab-tasks" class="tab-content space-y-5">
             <div class="flex items-center justify-between gap-4">
                 <div class="flex items-center gap-2">
-                    <h2 class="font-display font-bold text-base text-slate-900">Tareas</h2>
+                    <h2 class="font-display font-semibold text-base text-slate-900">Tareas</h2>
                     <span class="text-xs text-slate-400"><?= count($tasks) ?> en total</span>
                 </div>
 
@@ -52,9 +52,9 @@
                     <div class="flex items-center justify-between px-1">
                         <div class="flex items-center gap-2">
                             <span class="w-2.5 h-2.5 rounded-full bg-slate-400"></span>
-                            <h3 class="font-display font-bold text-slate-800 text-xs sm:text-sm">Por Hacer</h3>
+                            <h3 class="font-display font-semibold text-slate-800 text-xs sm:text-sm">Por Hacer</h3>
                         </div>
-                        <span id="count-kanban-pendiente" class="px-2 py-0.5 rounded-full bg-slate-200/70 text-[11px] font-bold text-slate-600"><?= count($tasksPending) ?></span>
+                        <span id="count-kanban-pendiente" class="text-xs font-medium text-slate-400 tabular-nums"><?= count($tasksPending) ?></span>
                     </div>
 
                     <div id="kanban-col-pendiente" class="kanban-column space-y-3 min-h-[150px] p-2 bg-slate-100/50 rounded-2xl border border-slate-200/50">
@@ -69,9 +69,9 @@
                     <div class="flex items-center justify-between px-1">
                         <div class="flex items-center gap-2">
                             <span class="w-2.5 h-2.5 rounded-full bg-amber-500"></span>
-                            <h3 class="font-display font-bold text-slate-800 text-xs sm:text-sm">En Progreso</h3>
+                            <h3 class="font-display font-semibold text-slate-800 text-xs sm:text-sm">En Progreso</h3>
                         </div>
-                        <span id="count-kanban-en_progreso" class="px-2 py-0.5 rounded-full bg-amber-100/70 text-[11px] font-bold text-amber-700"><?= count($tasksInProgress) ?></span>
+                        <span id="count-kanban-en_progreso" class="text-xs font-medium text-slate-400 tabular-nums"><?= count($tasksInProgress) ?></span>
                     </div>
 
                     <div id="kanban-col-en_progreso" class="kanban-column space-y-3 min-h-[150px] p-2 bg-slate-100/50 rounded-2xl border border-slate-200/50">
@@ -86,9 +86,9 @@
                     <div class="flex items-center justify-between px-1">
                         <div class="flex items-center gap-2">
                             <span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
-                            <h3 class="font-display font-bold text-slate-800 text-xs sm:text-sm">Completadas</h3>
+                            <h3 class="font-display font-semibold text-slate-800 text-xs sm:text-sm">Completadas</h3>
                         </div>
-                        <span id="count-kanban-completada" class="px-2 py-0.5 rounded-full bg-emerald-100/70 text-[11px] font-bold text-emerald-700"><?= count($tasksCompleted) ?></span>
+                        <span id="count-kanban-completada" class="text-xs font-medium text-slate-400 tabular-nums"><?= count($tasksCompleted) ?></span>
                     </div>
 
                     <div id="kanban-col-completada" class="kanban-column space-y-3 min-h-[150px] p-2 bg-slate-100/50 rounded-2xl border border-slate-200/50">
@@ -141,7 +141,7 @@
                                         default   => 'bg-slate-50 text-slate-600 border-slate-200/60'
                                     };
                                 ?>
-                                <span class="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md border <?= $prioClass ?>">
+                                <span class="text-[11px] font-medium capitalize px-2 py-0.5 rounded-full <?= $prioClass ?>">
                                     <?= e($task['priority']) ?>
                                 </span>
 

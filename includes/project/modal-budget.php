@@ -3,10 +3,10 @@
 // Parcial de project-view.php: usa las variables preparadas en esa página.
 ?>
 <!-- Modal: Editar Presupuesto / Costo Total del Proyecto -->
-<div id="edit-budget-modal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs hidden">
+<div id="edit-budget-modal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs hidden">
     <div class="bg-white rounded-2xl max-w-md w-full shadow-2xl border border-slate-100 overflow-hidden">
         <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
-            <h3 class="font-display font-bold text-slate-800 text-base flex items-center gap-2">
+            <h3 class="font-display font-semibold text-slate-800 text-base flex items-center gap-2">
                 <i data-lucide="coins" class="w-4 h-4 text-brand-600"></i>
                 <span>Definir Costo Total del Proyecto</span>
             </h3>
@@ -20,11 +20,11 @@
             </p>
             <div class="grid grid-cols-3 gap-3">
                 <div class="col-span-2">
-                    <label class="block text-xs font-semibold text-slate-700 uppercase mb-1.5">Costo Total *</label>
+                    <label class="block text-xs font-medium text-slate-700 mb-1.5">Costo Total *</label>
                     <input type="number" step="0.01" min="0" id="budget-amount-input" required value="<?= htmlspecialchars((string)$projectBudget) ?>" placeholder="0.00" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm focus:ring-brand-500 font-bold">
                 </div>
                 <div>
-                    <label class="block text-xs font-semibold text-slate-700 uppercase mb-1.5">Moneda</label>
+                    <label class="block text-xs font-medium text-slate-700 mb-1.5">Moneda</label>
                     <select id="budget-currency-input" class="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-xs focus:ring-brand-500 bg-white font-mono">
                         <option value="USD" <?= $projectCurrency === 'USD' ? 'selected' : '' ?>>USD ($)</option>
                         <option value="EUR" <?= $projectCurrency === 'EUR' ? 'selected' : '' ?>>EUR (€)</option>

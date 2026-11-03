@@ -80,20 +80,20 @@ require_once __DIR__ . '/includes/sidebar.php';
 ?>
 
 <!-- Contenedor Principal de Usuarios -->
-<main class="flex-1 flex flex-col min-w-0 bg-[#F8FAFC] overflow-y-auto">
+<main class="flex-1 flex flex-col min-w-0 bg-slate-50 overflow-y-auto">
     <!-- Barra Superior -->
-    <header class="min-h-[4.5rem] sm:min-h-[5rem] py-4 sm:py-5 bg-white border-b border-slate-200/80 px-6 sm:px-10 flex items-center justify-between sticky top-0 z-10">
+    <header class="h-16 flex-shrink-0 bg-white/90 backdrop-blur border-b border-slate-200/70 px-4 sm:px-8 flex items-center justify-between gap-3 sticky top-0 z-10">
         <div class="flex items-center gap-3">
-            <button onclick="toggleSidebar()" class="p-2 -ml-2 rounded-xl text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition" title="Alternar menú lateral">
+            <button onclick="toggleSidebar()" class="p-1.5 -ml-1.5 rounded-md text-slate-400 hover:text-slate-900 hover:bg-slate-100 transition" title="Alternar menú lateral">
                 <i data-lucide="menu" class="w-5 h-5"></i>
             </button>
             <div>
-                <h1 class="font-display font-bold text-lg sm:text-xl text-slate-900 tracking-tight">Usuarios & Control de Acceso</h1>
+                <h1 class="font-semibold text-base sm:text-lg text-slate-900 tracking-tight">Usuarios y roles</h1>
             </div>
         </div>
 
         <div class="flex items-center gap-3">
-            <button onclick="toggleNewUserForm()" class="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-semibold text-xs sm:text-sm shadow-sm shadow-purple-500/25 transition">
+            <button onclick="toggleNewUserForm()" class="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-brand-600 hover:bg-brand-700 text-white font-semibold text-xs sm:text-sm shadow-sm shadow-brand-500/25 transition">
                 <i data-lucide="user-plus" class="w-4 h-4"></i>
                 <span>Nuevo Usuario</span>
             </button>
@@ -106,58 +106,58 @@ require_once __DIR__ . '/includes/sidebar.php';
         <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
             <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-2xs space-y-2">
                 <div class="flex items-center justify-between">
-                    <span class="text-[11px] font-bold uppercase tracking-wider text-slate-400">Total Usuarios</span>
-                    <div class="w-8 h-8 rounded-xl bg-slate-100 text-slate-600 flex items-center justify-center">
+                    <span class="text-xs font-medium text-slate-500">Total Usuarios</span>
+                    <div class="w-8 h-8 rounded-lg bg-slate-50 text-slate-400 flex items-center justify-center">
                         <i data-lucide="users" class="w-4 h-4"></i>
                     </div>
                 </div>
-                <div class="text-2xl sm:text-3xl font-display font-black text-slate-900"><?= (int)$statsCounts['total_users'] ?></div>
+                <div class="text-2xl sm:text-[28px] leading-none font-semibold tracking-tight text-slate-900"><?= (int)$statsCounts['total_users'] ?></div>
                 <span class="text-xs text-slate-400 font-medium">cuentas activas</span>
             </div>
 
             <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-2xs space-y-2">
                 <div class="flex items-center justify-between">
-                    <span class="text-[11px] font-bold uppercase tracking-wider text-purple-700">Administradores</span>
-                    <div class="w-8 h-8 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center">
+                    <span class="text-xs font-medium text-slate-500">Administradores</span>
+                    <div class="w-8 h-8 rounded-lg bg-slate-50 text-slate-400 flex items-center justify-center">
                         <i data-lucide="shield" class="w-4 h-4"></i>
                     </div>
                 </div>
-                <div class="text-2xl sm:text-3xl font-display font-black text-purple-700"><?= (int)$statsCounts['count_admin'] ?></div>
+                <div class="text-2xl sm:text-[28px] leading-none font-semibold tracking-tight text-slate-900"><?= (int)$statsCounts['count_admin'] ?></div>
                 <span class="text-xs text-slate-400 font-medium">control absoluto</span>
             </div>
 
             <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-2xs space-y-2">
                 <div class="flex items-center justify-between">
-                    <span class="text-[11px] font-bold uppercase tracking-wider text-blue-700">Colaboradores & PM</span>
-                    <div class="w-8 h-8 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
+                    <span class="text-xs font-medium text-blue-700">Colaboradores & PM</span>
+                    <div class="w-8 h-8 rounded-lg bg-slate-50 text-slate-400 flex items-center justify-center">
                         <i data-lucide="user-check" class="w-4 h-4"></i>
                     </div>
                 </div>
-                <div class="text-2xl sm:text-3xl font-display font-black text-blue-700"><?= (int)$statsCounts['count_collab'] + (int)$statsCounts['count_pm'] ?></div>
+                <div class="text-2xl sm:text-[28px] leading-none font-semibold tracking-tight text-slate-900"><?= (int)$statsCounts['count_collab'] + (int)$statsCounts['count_pm'] ?></div>
                 <span class="text-xs text-slate-400 font-medium"><?= (int)$statsCounts['count_pm'] ?> managers / <?= (int)$statsCounts['count_collab'] ?> operativos</span>
             </div>
 
             <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-2xs space-y-2">
                 <div class="flex items-center justify-between">
-                    <span class="text-[11px] font-bold uppercase tracking-wider text-amber-700">Clientes</span>
-                    <div class="w-8 h-8 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center">
+                    <span class="text-xs font-medium text-amber-700">Clientes</span>
+                    <div class="w-8 h-8 rounded-lg bg-slate-50 text-slate-400 flex items-center justify-center">
                         <i data-lucide="briefcase" class="w-4 h-4"></i>
                     </div>
                 </div>
-                <div class="text-2xl sm:text-3xl font-display font-black text-amber-600"><?= (int)$statsCounts['count_client'] ?></div>
+                <div class="text-2xl sm:text-[28px] leading-none font-semibold tracking-tight text-slate-900"><?= (int)$statsCounts['count_client'] ?></div>
                 <span class="text-xs text-slate-400 font-medium">acceso restringido a sus proyectos</span>
             </div>
         </div>
 
         <!-- Formulario Desplegable para Crear Nuevo Usuario -->
-        <div id="new-user-form-card" class="hidden bg-white rounded-3xl border border-purple-200/80 shadow-sm p-6 sm:p-8 space-y-5">
+        <div id="new-user-form-card" class="hidden bg-white rounded-3xl border border-brand-200/80 shadow-sm p-6 sm:p-8 space-y-5">
             <div class="flex items-center justify-between pb-3 border-b border-slate-100">
                 <div class="flex items-center gap-2.5">
-                    <div class="w-9 h-9 rounded-xl bg-purple-50 text-purple-700 flex items-center justify-center font-bold">
+                    <div class="w-9 h-9 rounded-xl bg-brand-50 text-brand-700 flex items-center justify-center font-bold">
                         <i data-lucide="user-plus" class="w-4 h-4"></i>
                     </div>
                     <div>
-                        <h3 class="font-display font-bold text-slate-900 text-base">Registrar Nuevo Usuario / Cliente</h3>
+                        <h3 class="font-display font-semibold text-slate-900 text-base">Registrar Nuevo Usuario / Cliente</h3>
                         <p class="text-xs text-slate-400">Configura sus credenciales, rol y proyectos permitidos</p>
                     </div>
                 </div>
@@ -169,23 +169,23 @@ require_once __DIR__ . '/includes/sidebar.php';
             <form id="create-user-form" onsubmit="handleCreateUserPage(event)" class="space-y-4">
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
-                        <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">Nombre Completo *</label>
-                        <input type="text" name="name" required placeholder="Ej: Carlos Méndez" class="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white focus:ring-1 focus:ring-purple-500">
+                        <label class="block text-xs font-medium text-slate-700 mb-1.5">Nombre Completo *</label>
+                        <input type="text" name="name" required placeholder="Ej: Carlos Méndez" class="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white focus:ring-1 focus:ring-brand-500">
                     </div>
                     <div>
-                        <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">Correo Electrónico *</label>
-                        <input type="email" name="email" required placeholder="usuario@empresa.com" class="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white focus:ring-1 focus:ring-purple-500">
+                        <label class="block text-xs font-medium text-slate-700 mb-1.5">Correo Electrónico *</label>
+                        <input type="email" name="email" required placeholder="usuario@empresa.com" class="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white focus:ring-1 focus:ring-brand-500">
                     </div>
                 </div>
 
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
-                        <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">Contraseña Inicial (mín. 8 caracteres) *</label>
-                        <input type="password" name="password" minlength="8" required placeholder="••••••••" class="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white focus:ring-1 focus:ring-purple-500">
+                        <label class="block text-xs font-medium text-slate-700 mb-1.5">Contraseña Inicial (mín. 8 caracteres) *</label>
+                        <input type="password" name="password" minlength="8" required placeholder="••••••••" class="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white focus:ring-1 focus:ring-brand-500">
                     </div>
                     <div>
-                        <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">Nivel de Acceso (Rol) *</label>
-                        <select name="role" id="new-user-role-select" onchange="handleNewUserRoleChange(this.value)" class="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white focus:ring-1 focus:ring-purple-500 font-medium">
+                        <label class="block text-xs font-medium text-slate-700 mb-1.5">Nivel de Acceso (Rol) *</label>
+                        <select name="role" id="new-user-role-select" onchange="handleNewUserRoleChange(this.value)" class="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white focus:ring-1 focus:ring-brand-500 font-medium">
                             <option value="cliente" selected>Cliente (Solo proyectos asignados y tickets)</option>
                             <option value="colaborador">Colaborador (Ejecuta tareas asignadas)</option>
                             <option value="project_manager">Project Manager (Gestiona proyectos)</option>
@@ -195,17 +195,17 @@ require_once __DIR__ . '/includes/sidebar.php';
                 </div>
 
                 <!-- Selección de Proyectos Asignados para Cliente o Miembro -->
-                <div id="new-user-projects-group" class="p-4 rounded-2xl bg-purple-50/50 border border-purple-100 space-y-2">
-                    <label class="block text-xs font-bold text-purple-950 flex items-center gap-1.5">
-                        <i data-lucide="folder-check" class="w-3.5 h-3.5 text-purple-600"></i>
+                <div id="new-user-projects-group" class="p-4 rounded-2xl bg-brand-50/50 border border-brand-100 space-y-2">
+                    <label class="block text-xs font-bold text-slate-900 flex items-center gap-1.5">
+                        <i data-lucide="folder-check" class="w-3.5 h-3.5 text-brand-600"></i>
                         <span>Proyectos Asignados a este usuario:</span>
                     </label>
-                    <p class="text-[11px] text-purple-700">Para clientes, solo podrán visualizar las tareas y tickets de los proyectos marcados aquí.</p>
+                    <p class="text-[11px] text-brand-700">Para clientes, solo podrán visualizar las tareas y tickets de los proyectos marcados aquí.</p>
 
                     <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 pt-2 max-h-48 overflow-y-auto">
                         <?php foreach ($allProjects as $proj): ?>
-                            <label class="flex items-center gap-2 p-2 rounded-xl bg-white border border-purple-100 hover:border-purple-300 cursor-pointer text-xs transition">
-                                <input type="checkbox" name="project_ids[]" value="<?= $proj['id'] ?>" class="rounded text-purple-600 focus:ring-purple-500">
+                            <label class="flex items-center gap-2 p-2 rounded-xl bg-white border border-brand-100 hover:border-brand-200 cursor-pointer text-xs transition">
+                                <input type="checkbox" name="project_ids[]" value="<?= $proj['id'] ?>" class="rounded text-brand-600 focus:ring-brand-500">
                                 <span class="w-2.5 h-2.5 rounded-full flex-shrink-0" style="background-color: <?= e($proj['color'] ?: '#6366F1') ?>;"></span>
                                 <span class="truncate font-medium text-slate-800"><?= e($proj['name']) ?></span>
                             </label>
@@ -215,7 +215,7 @@ require_once __DIR__ . '/includes/sidebar.php';
 
                 <div class="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
                     <button type="button" onclick="toggleNewUserForm()" class="px-4 py-2 rounded-xl text-xs font-medium text-slate-600 hover:bg-slate-100 transition">Cancelar</button>
-                    <button type="submit" id="btn-save-new-user" class="px-5 py-2 rounded-xl text-xs font-semibold text-white bg-purple-600 hover:bg-purple-700 shadow-2xs transition">Registrar Usuario</button>
+                    <button type="submit" id="btn-save-new-user" class="px-5 py-2 rounded-xl text-xs font-semibold text-white bg-brand-600 hover:bg-brand-700 shadow-2xs transition">Registrar Usuario</button>
                 </div>
             </form>
         </div>
@@ -225,7 +225,7 @@ require_once __DIR__ . '/includes/sidebar.php';
             <form method="GET" action="users.php" class="w-full flex flex-col md:flex-row items-center gap-3">
                 <div class="relative flex-1 w-full">
                     <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2"></i>
-                    <input type="text" name="search" value="<?= e($search) ?>" placeholder="Buscar por nombre o correo electrónico..." class="w-full pl-10 pr-4 py-2 rounded-xl border border-slate-200 text-xs sm:text-sm focus:ring-1 focus:ring-purple-500 bg-white">
+                    <input type="text" name="search" value="<?= e($search) ?>" placeholder="Buscar por nombre o correo electrónico..." class="w-full pl-10 pr-4 py-2 rounded-xl border border-slate-200 text-xs sm:text-sm focus:ring-1 focus:ring-brand-500 bg-white">
                 </div>
 
                 <div class="flex items-center gap-2 w-full md:w-auto">
@@ -250,14 +250,14 @@ require_once __DIR__ . '/includes/sidebar.php';
         <div class="bg-white rounded-3xl border border-slate-200/80 shadow-2xs overflow-hidden">
             <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
                 <div class="flex items-center gap-2">
-                    <h3 class="font-display font-bold text-sm text-slate-900">Directorio de Cuentas</h3>
+                    <h3 class="font-display font-semibold text-sm text-slate-900">Directorio de Cuentas</h3>
                     <span class="text-xs font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600"><?= $pagination['total'] ?></span>
                 </div>
             </div>
 
             <div class="overflow-x-auto">
                 <table class="w-full text-left text-xs text-slate-600">
-                    <thead class="bg-slate-50/70 border-b border-slate-100 uppercase text-[10px] tracking-wider text-slate-400">
+                    <thead class="bg-slate-50/70 border-b border-slate-100 text-[11px] text-slate-500 font-medium">
                         <tr>
                             <th class="py-3.5 px-6">Usuario</th>
                             <th class="py-3.5 px-4">Nivel de Acceso (Rol)</th>
@@ -285,7 +285,7 @@ require_once __DIR__ . '/includes/sidebar.php';
                                             <div class="font-bold text-slate-900 flex items-center gap-1.5">
                                                 <span><?= e($u['name']) ?></span>
                                                 <?php if ($isSelf): ?>
-                                                    <span class="text-[9px] font-extrabold uppercase px-1.5 py-0.2 rounded bg-indigo-100 text-brand-700">Tú</span>
+                                                    <span class="text-[11px] font-medium px-1.5 py-0.2 rounded bg-indigo-100 text-brand-700">Tú</span>
                                                 <?php endif; ?>
                                             </div>
                                             <div class="text-[11px] text-slate-400"><?= e($u['email']) ?></div>
@@ -296,12 +296,12 @@ require_once __DIR__ . '/includes/sidebar.php';
                                 <!-- Rol / Selector Rápido -->
                                 <td class="py-3.5 px-4 whitespace-nowrap">
                                     <?php if ($isSelf): ?>
-                                        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider border <?= $rBadge['class'] ?>">
+                                        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-medium border <?= $rBadge['class'] ?>">
                                             <span class="w-1.5 h-1.5 rounded-full <?= $rBadge['dot'] ?>"></span>
                                             <?= $rBadge['label'] ?>
                                         </span>
                                     <?php else: ?>
-                                        <select onchange="changeRoleAjax(<?= $u['id'] ?>, this.value)" class="text-xs font-semibold py-1 px-2.5 rounded-xl border border-slate-200 bg-white text-slate-800 cursor-pointer focus:ring-1 focus:ring-purple-500">
+                                        <select onchange="changeRoleAjax(<?= $u['id'] ?>, this.value)" class="text-xs font-semibold py-1 px-2.5 rounded-xl border border-slate-200 bg-white text-slate-800 cursor-pointer focus:ring-1 focus:ring-brand-500">
                                             <option value="admin" <?= $u['role'] === 'admin' ? 'selected' : '' ?>>Administrador</option>
                                             <option value="project_manager" <?= $u['role'] === 'project_manager' ? 'selected' : '' ?>>Project Manager</option>
                                             <option value="colaborador" <?= $u['role'] === 'colaborador' ? 'selected' : '' ?>>Colaborador</option>
@@ -313,7 +313,7 @@ require_once __DIR__ . '/includes/sidebar.php';
                                 <!-- Proyectos Vinculados -->
                                 <td class="py-3.5 px-4">
                                     <?php if ($u['role'] === 'admin'): ?>
-                                        <span class="text-xs text-purple-700 font-semibold flex items-center gap-1">
+                                        <span class="text-xs text-brand-700 font-semibold flex items-center gap-1">
                                             <i data-lucide="shield-check" class="w-3.5 h-3.5"></i> Todos los proyectos (Acceso total)
                                         </span>
                                     <?php else: ?>
@@ -334,7 +334,7 @@ require_once __DIR__ . '/includes/sidebar.php';
                                                 <?php endif; ?>
                                             <?php endif; ?>
 
-                                            <button type="button" onclick="openAssignModal(<?= $u['id'] ?>, '<?= e(addslashes($u['name'])) ?>', <?= json_encode($pIds) ?>)" class="ml-1 text-purple-600 hover:text-purple-800 font-semibold text-[11px] hover:underline flex items-center gap-0.5">
+                                            <button type="button" onclick="openAssignModal(<?= $u['id'] ?>, '<?= e(addslashes($u['name'])) ?>', <?= json_encode($pIds) ?>)" class="ml-1 text-brand-600 hover:text-brand-700 font-semibold text-[11px] hover:underline flex items-center gap-0.5">
                                                 <i data-lucide="edit-3" class="w-3 h-3"></i>
                                                 <span>Editar</span>
                                             </button>
@@ -372,15 +372,15 @@ require_once __DIR__ . '/includes/sidebar.php';
 </main>
 
 <!-- Modal: Asignar Proyectos a Usuario -->
-<div id="assign-projects-modal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs hidden transition-opacity">
+<div id="assign-projects-modal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs hidden transition-opacity">
     <div class="bg-white rounded-3xl max-w-lg w-full shadow-2xl border border-slate-100 overflow-hidden transform transition-all">
-        <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-purple-50/50">
+        <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-brand-50/50">
             <div class="flex items-center gap-2.5">
-                <div class="w-8 h-8 rounded-lg bg-purple-100 text-purple-700 flex items-center justify-center">
+                <div class="w-8 h-8 rounded-lg bg-brand-100 text-brand-700 flex items-center justify-center">
                     <i data-lucide="folder-check" class="w-4 h-4"></i>
                 </div>
                 <div>
-                    <h3 class="font-display font-bold text-slate-900 text-sm">Vincular Proyectos</h3>
+                    <h3 class="font-display font-semibold text-slate-900 text-sm">Vincular Proyectos</h3>
                     <p class="text-[11px] text-slate-400" id="assign-modal-user-name"></p>
                 </div>
             </div>
@@ -396,8 +396,8 @@ require_once __DIR__ . '/includes/sidebar.php';
 
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-64 overflow-y-auto p-1">
                 <?php foreach ($allProjects as $proj): ?>
-                    <label class="flex items-center gap-2 p-2.5 rounded-xl border border-slate-200 hover:border-purple-300 cursor-pointer text-xs transition bg-slate-50/50 hover:bg-white">
-                        <input type="checkbox" name="project_ids[]" value="<?= $proj['id'] ?>" id="assign-chk-<?= $proj['id'] ?>" class="rounded text-purple-600 focus:ring-purple-500">
+                    <label class="flex items-center gap-2 p-2.5 rounded-xl border border-slate-200 hover:border-brand-200 cursor-pointer text-xs transition bg-slate-50/50 hover:bg-white">
+                        <input type="checkbox" name="project_ids[]" value="<?= $proj['id'] ?>" id="assign-chk-<?= $proj['id'] ?>" class="rounded text-brand-600 focus:ring-brand-500">
                         <span class="w-2.5 h-2.5 rounded-full flex-shrink-0" style="background-color: <?= e($proj['color'] ?: '#6366F1') ?>;"></span>
                         <span class="truncate font-medium text-slate-800"><?= e($proj['name']) ?></span>
                     </label>
@@ -406,7 +406,7 @@ require_once __DIR__ . '/includes/sidebar.php';
 
             <div class="pt-3 border-t border-slate-100 flex items-center justify-end gap-2">
                 <button type="button" onclick="closeModal('assign-projects-modal')" class="px-3.5 py-1.5 rounded-xl text-xs font-medium text-slate-600 hover:bg-slate-100 transition">Cancelar</button>
-                <button type="submit" id="btn-save-projects" class="px-4 py-1.5 rounded-xl text-xs font-semibold text-white bg-purple-600 hover:bg-purple-700 shadow-2xs transition">Guardar Cambios</button>
+                <button type="submit" id="btn-save-projects" class="px-4 py-1.5 rounded-xl text-xs font-semibold text-white bg-brand-600 hover:bg-brand-700 shadow-2xs transition">Guardar Cambios</button>
             </div>
         </form>
     </div>

@@ -16,7 +16,7 @@ $prioClass = match($task['priority']) {
                 <span class="truncate"><?= e($task['project_name']) ?></span>
             </a>
 
-            <span class="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md border <?= $prioClass ?>">
+            <span class="text-[11px] font-medium capitalize px-2 py-0.5 rounded-full <?= $prioClass ?>">
                 <?= e($task['priority']) ?>
             </span>
         </div>
