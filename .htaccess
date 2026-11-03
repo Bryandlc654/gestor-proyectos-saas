@@ -3,8 +3,10 @@
     Require all denied
 </FilesMatch>
 RedirectMatch 404 /\.git
+# Dependencias y código interno (vendor/ no debe desplegarse, pero por si acaso)
+RedirectMatch 404 /(vendor|node_modules|src|tests)(/|$)
 
-<FilesMatch "(?i)\.(sql|md|example|log|ini)$">
+<FilesMatch "(?i)(\.(sql|md|example|log|ini|json|lock|xml|dist)|^tailwind\.config\.js)$">
     Require all denied
 </FilesMatch>
 

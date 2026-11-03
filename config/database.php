@@ -39,7 +39,7 @@ function getDB(): PDO {
                 <meta charset="UTF-8">
                 <meta name="viewport" content="width=device-width, initial-scale=1.0">
                 <title>Error de Conexión a Base de Datos</title>
-                <script src="https://cdn.tailwindcss.com"></script>
+                <link rel="stylesheet" href="assets/css/app.css">
             </head>
             <body class="bg-slate-50 min-h-screen flex items-center justify-center p-4 font-sans text-slate-800">
                 <div class="max-w-lg w-full bg-white rounded-2xl shadow-xl border border-red-100 p-8 text-center">

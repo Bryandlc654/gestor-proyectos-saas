@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:noNamespaceSchemaLocation="vendor/phpunit/phpunit/phpunit.xsd"
+         bootstrap="tests/bootstrap.php"
+         colors="true"
+         cacheDirectory=".phpunit.cache">
+    <testsuites>
+        <testsuite name="unit">
+            <directory>tests/Unit</directory>
+        </testsuite>
+        <testsuite name="integration">
+            <directory>tests/Integration</directory>
+        </testsuite>
+    </testsuites>
+    <source>
+        <include>
+            <directory>src</directory>
+        </include>
+    </source>
+    <php>
+        <!-- Base de datos para tests de integración. Se borra y recrea en cada ejecución: NUNCA uses la de producción. -->
+        <env name="TEST_DB_HOST" value="127.0.0.1" force="false"/>
+        <env name="TEST_DB_PORT" value="3306" force="false"/>
+        <env name="TEST_DB_NAME" value="" force="false"/>
+        <env name="TEST_DB_USER" value="root" force="false"/>
+        <env name="TEST_DB_PASS" value="" force="false"/>
+    </php>
+</phpunit>

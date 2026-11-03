@@ -35,7 +35,7 @@ Dentro de cada proyecto podrás gestionar:
 ---
 
 ## 🛠️ Requisitos de Ejecución
-- **PHP 8.0 o superior** con extensiones `pdo`, `pdo_mysql` habilitadas.
+- **PHP 8.1 o superior** con extensiones `pdo`, `pdo_mysql` y `fileinfo` habilitadas.
 - **MySQL 5.7+** o **MariaDB 10.3+**.
 - Servidor local como **XAMPP**, **Laragon**, **WampServer** o el servidor embebido de PHP.
 
@@ -81,3 +81,42 @@ http://localhost:8000
 
 ## 🔑 Credenciales de Demostración
 Si cargaste los datos demo con `--seed` (solo en local), hay cuentas para los cuatro roles (`admin@demo.com`, `pm@demo.com`, `colaborador@demo.com`, `cliente@demo.com`). La contraseña está indicada al inicio de `database/seeds/demo.sql`. **No cargues los datos demo en producción.**
+
+---
+
+## 🧑‍💻 Desarrollo
+
+### Estructura
+- `src/` contiene las clases del namespace `App\` (PSR-4): `Http` (Request, Router), `Controller`, `Repository`, `Security` (permisos, CSRF, límite de intentos de login), `Upload`, `Database` (migraciones) y `Support`.
+- `config/app.php` mantiene las funciones globales de siempre (`canManageTasks()`, `csrf_token()`, ...) como fachada sobre esas clases.
+- `api/tasks.php` usa el patrón Router + Controller (`App\Controller\TaskController`). El resto de endpoints de `api/` sigue siendo procedural y se puede migrar al mismo patrón.
+- `project-view.php` arma los datos de la página; el HTML de cada pestaña y modal está en `includes/project/` y su JavaScript en `assets/js/project-view.js`.
+
+### Dependencias de desarrollo
+Composer y Node solo hacen falta en desarrollo. En producción no hay que ejecutar `composer install` (existe un autoloader de respaldo en `config/autoload.php`) ni `npm` (el CSS compilado se versiona).
+```bash
+composer install
+```
+```bash
+npm install
+```
+
+### Estilos (Tailwind CSS)
+Las clases se compilan desde `assets/css/input.css` a `assets/css/app.css`, que es el archivo que se sube al servidor. **Después de añadir o cambiar clases en PHP o JS, recompila y versiona `app.css`**:
+```bash
+npm run build:css
+```
+Durante el desarrollo puedes dejarlo recompilando automáticamente:
+```bash
+npm run watch:css
+```
+
+### Tests
+Los tests unitarios no necesitan base de datos:
+```bash
+vendor/bin/phpunit --testsuite unit
+```
+Los de integración usan una base MySQL desechable: **la base indicada en `TEST_DB_NAME` se borra y se recrea en cada ejecución**, por eso su nombre debe contener `test`. Sin `TEST_DB_NAME` se omiten. Los datos de conexión se toman de `TEST_DB_HOST`, `TEST_DB_PORT`, `TEST_DB_USER` y `TEST_DB_PASS` (por defecto `127.0.0.1:3306`, `root`, sin contraseña; ver `phpunit.xml`).
+```bash
+TEST_DB_NAME=flowtasks_phpunit_test vendor/bin/phpunit
+```
