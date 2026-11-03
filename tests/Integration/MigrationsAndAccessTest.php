@@ -16,6 +16,37 @@ final class MigrationsAndAccessTest extends DatabaseTestCase
         $this->assertSame([], $runner->migrate());
     }
 
+    public function testResumesMigrationsLeftHalfApplied(): void
+    {
+        // Simula ejecuciones anteriores cortadas a mitad: el DDL quedó aplicado (salvo un índice)
+        // pero las migraciones no se registraron
+        static::$db->exec("ALTER TABLE invoices DROP INDEX idx_invoices_status_due");
+        static::$db->exec("DELETE FROM schema_migrations WHERE version <> '" . MigrationRunner::BASELINE . "'");
+        $agencies = (int)static::$db->query("SELECT COUNT(*) FROM agencies")->fetchColumn();
+
+        $runner = new MigrationRunner(static::$db, dirname(__DIR__, 2) . '/database/migrations');
+        $applied = $runner->migrate();
+
+        $this->assertSame(array_keys(array_slice($runner->status(), 1)), $applied);
+        $this->assertNotContains(false, $runner->status());
+        $this->assertNotFalse(static::$db->query("SHOW INDEX FROM invoices WHERE Key_name = 'idx_invoices_status_due'")->fetchColumn(), 'Crea lo que faltaba');
+        $this->assertSame($agencies, (int)static::$db->query("SELECT COUNT(*) FROM agencies")->fetchColumn(), 'No duplica la agencia inicial');
+    }
+
+    public function testOtherMigrationErrorsStillStop(): void
+    {
+        $dir = sys_get_temp_dir() . '/ft_migrations_' . bin2hex(random_bytes(4));
+        mkdir($dir);
+        file_put_contents($dir . '/9999_broken.sql', "ALTER TABLE invoices ADD INDEX idx_tmp (columna_inexistente);");
+        try {
+            $this->expectException(\PDOException::class);
+            (new MigrationRunner(static::$db, $dir))->migrate();
+        } finally {
+            unlink($dir . '/9999_broken.sql');
+            rmdir($dir);
+        }
+    }
+
     public function testOwnSchemaHasNoConflicts(): void
     {
         $runner = new MigrationRunner(static::$db, dirname(__DIR__, 2) . '/database/migrations');

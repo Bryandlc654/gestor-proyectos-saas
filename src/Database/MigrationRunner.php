@@ -3,6 +3,7 @@
 namespace App\Database;
 
 use PDO;
+use PDOException;
 
 /**
  * Aplica migraciones SQL versionadas (NNNN_nombre.sql) una sola vez y las registra en schema_migrations.
@@ -129,7 +130,75 @@ final class MigrationRunner
     public function runFile(string $path): void
     {
         foreach (SqlSplitter::split(file_get_contents($path)) as $statement) {
-            $this->db->exec($statement);
+            $this->execResumable($statement);
         }
+    }
+
+    /**
+     * Ejecuta una sentencia tolerando lo que ya se aplicó en una ejecución anterior que se cortó a mitad
+     * (columna, índice, clave foránea o tabla existentes). Un ALTER TABLE con varias cláusulas falla
+     * entero si una ya existe, así que en ese caso se reintenta cláusula a cláusula.
+     */
+    private function execResumable(string $statement): void
+    {
+        try {
+            $this->db->exec($statement);
+            return;
+        } catch (PDOException $e) {
+            if (!self::isAlreadyApplied($e)) {
+                throw $e;
+            }
+        }
+
+        foreach (self::alterClauses($statement) as $clause) {
+            try {
+                $this->db->exec($clause);
+            } catch (PDOException $e) {
+                if (!self::isAlreadyApplied($e)) {
+                    throw $e;
+                }
+            }
+        }
+    }
+
+    // 1050 tabla, 1060 columna, 1061 índice, 1826 clave foránea (MySQL); MariaDB indica la clave foránea
+    // repetida con errno 121 dentro de un error genérico
+    private static function isAlreadyApplied(PDOException $e): bool
+    {
+        $code = (int)($e->errorInfo[1] ?? 0);
+        return in_array($code, [1050, 1060, 1061, 1826], true)
+            || (in_array($code, [1005, 1022], true) && str_contains($e->getMessage(), '121'));
+    }
+
+    /** @return string[] Un ALTER TABLE por cada cláusula; vacío si la sentencia no tiene varias. */
+    private static function alterClauses(string $statement): array
+    {
+        if (!preg_match('/^\s*ALTER\s+TABLE\s+(`[^`]+`|\w+)\s+(.+)$/is', $statement, $m)) {
+            return [];
+        }
+
+        $clauses = [];
+        $current = '';
+        $depth = 0;
+        $quote = null;
+        foreach (str_split($m[2]) as $ch) {
+            if ($quote !== null) {
+                $quote = $ch === $quote ? null : $quote;
+            } elseif ($ch === "'" || $ch === '"' || $ch === '`') {
+                $quote = $ch;
+            } elseif ($ch === '(') {
+                $depth++;
+            } elseif ($ch === ')') {
+                $depth--;
+            } elseif ($ch === ',' && $depth === 0) {
+                $clauses[] = trim($current);
+                $current = '';
+                continue;
+            }
+            $current .= $ch;
+        }
+        $clauses[] = trim($current);
+
+        return count($clauses) > 1 ? array_map(fn(string $c) => "ALTER TABLE {$m[1]} {$c}", $clauses) : [];
     }
 }
