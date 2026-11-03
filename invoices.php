@@ -82,7 +82,8 @@ $kpis = $stmtKpi->fetch() ?: [
     'cancelled_amount' => 0, 'count_pending' => 0, 'count_paid' => 0
 ];
 
-// Obtener listado de facturas
+// Obtener listado de facturas (paginado)
+$pagination = paginate((int)$kpis['total_invoices'], 50);
 $invoicesSql = "
     SELECT 
         i.*,
@@ -93,6 +94,7 @@ $invoicesSql = "
     INNER JOIN projects p ON i.project_id = p.id
     $whereSql
     ORDER BY (i.status = 'pendiente') DESC, i.due_date ASC, i.created_at DESC
+    LIMIT {$pagination['per_page']} OFFSET {$pagination['offset']}
 ";
 $stmtInv = $db->prepare($invoicesSql);
 $stmtInv->execute($params);
@@ -226,7 +228,7 @@ require_once __DIR__ . '/includes/sidebar.php';
             <div class="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
                 <div class="flex items-center gap-2">
                     <h3 class="font-display font-bold text-sm text-slate-900">Listado General de Facturas</h3>
-                    <span class="text-xs font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600"><?= count($invoices) ?></span>
+                    <span class="text-xs font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600"><?= (int)$kpis['total_invoices'] ?></span>
                 </div>
             </div>
 
@@ -307,6 +309,8 @@ require_once __DIR__ . '/includes/sidebar.php';
                 </table>
             </div>
         </div>
+
+        <?php require __DIR__ . '/includes/pagination.php'; ?>
 
     </div>
 </main>

@@ -34,7 +34,12 @@ if (!empty($search)) {
 
 $whereSql = !empty($where) ? "WHERE " . implode(" AND ", $where) : "";
 
-// Consulta de usuarios con sus proyectos vinculados
+// Total filtrado para la paginación
+$stmtTotal = $db->prepare("SELECT COUNT(*) FROM users u $whereSql");
+$stmtTotal->execute($params);
+$pagination = paginate((int)$stmtTotal->fetchColumn(), 50);
+
+// Consulta de usuarios con sus proyectos vinculados (paginada)
 $query = "
     SELECT 
         u.id, 
@@ -50,6 +55,7 @@ $query = "
     $whereSql
     GROUP BY u.id
     ORDER BY u.id ASC
+    LIMIT {$pagination['per_page']} OFFSET {$pagination['offset']}
 ";
 $stmtUsers = $db->prepare($query);
 $stmtUsers->execute($params);
@@ -245,7 +251,7 @@ require_once __DIR__ . '/includes/sidebar.php';
             <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
                 <div class="flex items-center gap-2">
                     <h3 class="font-display font-bold text-sm text-slate-900">Directorio de Cuentas</h3>
-                    <span class="text-xs font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600"><?= count($usersList) ?></span>
+                    <span class="text-xs font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600"><?= $pagination['total'] ?></span>
                 </div>
             </div>
 
@@ -359,6 +365,8 @@ require_once __DIR__ . '/includes/sidebar.php';
                 </table>
             </div>
         </div>
+
+        <?php require __DIR__ . '/includes/pagination.php'; ?>
 
     </div>
 </main>

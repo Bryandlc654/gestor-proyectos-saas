@@ -49,7 +49,7 @@ switch ($action) {
         $title = trim($_POST['title'] ?? '');
         $description = trim($_POST['description'] ?? '');
         $priority = in_array($_POST['priority'] ?? '', ['baja', 'media', 'alta', 'urgente']) ? $_POST['priority'] : 'media';
-        $assignedTo = trim($_POST['assigned_to'] ?? '');
+        $assignedUserId = !empty($_POST['assigned_user_id']) ? (int)$_POST['assigned_user_id'] : null;
         $dueDate = !empty($_POST['due_date']) ? $_POST['due_date'] : null;
 
         if (empty($title)) {
@@ -57,8 +57,17 @@ switch ($action) {
             exit;
         }
 
-        $stmt = $db->prepare("INSERT INTO tasks (project_id, title, description, priority, status, assigned_to, due_date) VALUES (?, ?, ?, ?, 'pendiente', ?, ?)");
-        $stmt->execute([$projectId, $title, $description, $priority, $assignedTo ?: null, $dueDate]);
+        $assignedTo = '';
+        if ($assignedUserId) {
+            $assignedTo = projectAssigneeName($assignedUserId, $projectId);
+            if ($assignedTo === null) {
+                echo json_encode(['success' => false, 'message' => 'El responsable debe ser miembro del proyecto']);
+                exit;
+            }
+        }
+
+        $stmt = $db->prepare("INSERT INTO tasks (project_id, title, description, priority, status, assigned_user_id, due_date) VALUES (?, ?, ?, ?, 'pendiente', ?, ?)");
+        $stmt->execute([$projectId, $title, $description, $priority, $assignedUserId, $dueDate]);
         $newId = (int)$db->lastInsertId();
 
         echo json_encode([
@@ -88,7 +97,7 @@ switch ($action) {
         $title = trim($_POST['title'] ?? '');
         $description = trim($_POST['description'] ?? '');
         $priority = in_array($_POST['priority'] ?? '', ['baja', 'media', 'alta', 'urgente']) ? $_POST['priority'] : 'media';
-        $assignedTo = trim($_POST['assigned_to'] ?? '');
+        $assignedUserId = !empty($_POST['assigned_user_id']) ? (int)$_POST['assigned_user_id'] : null;
         $dueDate = !empty($_POST['due_date']) ? $_POST['due_date'] : null;
         $status = in_array($_POST['status'] ?? '', ['pendiente', 'en_progreso', 'completada']) ? $_POST['status'] : 'pendiente';
 
@@ -97,8 +106,18 @@ switch ($action) {
             exit;
         }
 
-        $stmt = $db->prepare("UPDATE tasks SET title = ?, description = ?, priority = ?, status = ?, assigned_to = ?, due_date = ? WHERE id = ? AND project_id = ?");
-        $stmt->execute([$title, $description, $priority, $status, $assignedTo ?: null, $dueDate, $taskId, $projectId]);
+        $assignedTo = '';
+        if ($assignedUserId) {
+            $assignedTo = projectAssigneeName($assignedUserId, $projectId);
+            if ($assignedTo === null) {
+                echo json_encode(['success' => false, 'message' => 'El responsable debe ser miembro del proyecto']);
+                exit;
+            }
+        }
+
+        // Al guardar se limpia el responsable heredado en texto (assigned_to): manda assigned_user_id
+        $stmt = $db->prepare("UPDATE tasks SET title = ?, description = ?, priority = ?, status = ?, assigned_user_id = ?, assigned_to = NULL, due_date = ? WHERE id = ? AND project_id = ?");
+        $stmt->execute([$title, $description, $priority, $status, $assignedUserId, $dueDate, $taskId, $projectId]);
 
         echo json_encode([
             'success' => true,
@@ -110,6 +129,7 @@ switch ($action) {
                 'priority' => $priority,
                 'status' => $status,
                 'assigned_to' => e($assignedTo ?: 'Sin asignar'),
+                'raw_assigned_to' => $assignedUserId ? (string)$assignedUserId : '',
                 'due_date' => $dueDate ? formatDate($dueDate) : 'Sin fecha',
                 'raw_due_date' => $dueDate ?: ''
             ]
@@ -157,7 +177,7 @@ switch ($action) {
 
     case 'get_detail':
         $taskId = (int)($_POST['task_id'] ?? 0);
-        $stmt = $db->prepare("SELECT * FROM tasks WHERE id = ? AND project_id = ?");
+        $stmt = $db->prepare("SELECT t.*, COALESCE(au.name, t.assigned_to) AS assigned_to FROM tasks t LEFT JOIN users au ON au.id = t.assigned_user_id WHERE t.id = ? AND t.project_id = ?");
         $stmt->execute([$taskId, $projectId]);
         $task = $stmt->fetch();
 
@@ -238,7 +258,7 @@ switch ($action) {
                 'original_name' => e($f['original_name']),
                 'file_size' => formatBytes($f['file_size']),
                 'created_at' => formatDate($f['created_at']),
-                'download_url' => "actions/file-actions.php?action=download&id={$f['id']}"
+                'download_url' => "api/files.php?action=download&id={$f['id']}"
             ], $taskFiles);
 
             // 4. Obtener enlaces de esta tarea
@@ -264,7 +284,7 @@ switch ($action) {
                 'priority' => $task['priority'],
                 'status' => $task['status'],
                 'assigned_to' => e($task['assigned_to'] ?: 'Sin asignar'),
-                'raw_assigned_to' => $task['assigned_to'] ?: '',
+                'raw_assigned_to' => $task['assigned_user_id'] ? (string)$task['assigned_user_id'] : '',
                 'due_date' => $task['due_date'] ? formatDate($task['due_date']) : 'Sin fecha',
                 'raw_due_date' => $task['due_date'] ?: '',
             ],

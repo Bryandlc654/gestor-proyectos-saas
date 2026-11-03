@@ -1,6 +1,10 @@
--- Base de datos para el Gestor de Proyectos y Tareas
-CREATE DATABASE IF NOT EXISTS `gestor_proyectos` DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-USE `gestor_proyectos`;
+-- 0001_baseline: esquema completo de FlowTasks al inicio de las migraciones versionadas.
+-- Todo usa IF NOT EXISTS, por lo que es seguro aplicarlo sobre una base de datos ya existente.
+
+CREATE TABLE IF NOT EXISTS `schema_migrations` (
+    `version` VARCHAR(100) PRIMARY KEY,
+    `applied_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- 1. Tabla de Usuarios con Niveles de Acceso (Roles)
 CREATE TABLE IF NOT EXISTS `users` (
@@ -157,13 +161,15 @@ CREATE TABLE IF NOT EXISTS `comments` (
     `id` INT AUTO_INCREMENT PRIMARY KEY,
     `project_id` INT NOT NULL,
     `task_id` INT NULL,
+    `parent_id` INT NULL,
     `user_id` INT NOT NULL,
     `content` TEXT NOT NULL,
     `image_path` VARCHAR(255) NULL,
     `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT `fk_comments_project` FOREIGN KEY (`project_id`) REFERENCES `projects` (`id`) ON DELETE CASCADE,
     CONSTRAINT `fk_comments_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE,
-    CONSTRAINT `fk_comments_task` FOREIGN KEY (`task_id`) REFERENCES `tasks` (`id`) ON DELETE CASCADE
+    CONSTRAINT `fk_comments_task` FOREIGN KEY (`task_id`) REFERENCES `tasks` (`id`) ON DELETE CASCADE,
+    CONSTRAINT `fk_comments_parent` FOREIGN KEY (`parent_id`) REFERENCES `comments` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- 11. Registro de intentos fallidos de inicio de sesión (protección contra fuerza bruta)
@@ -176,51 +182,25 @@ CREATE TABLE IF NOT EXISTS `login_attempts` (
     INDEX `idx_login_ip_time` (`ip_address`, `attempted_at`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- DATOS DE DEMOSTRACIÓN (Password: admin123 para todas las cuentas)
-INSERT INTO `users` (`id`, `name`, `email`, `role`, `password`) VALUES
-(1, 'Administrador Demo', 'admin@demo.com', 'admin', '$2y$10$3ZZzNvgVe8cVluIKNJM8DeWT04pOpeKl8zd0NqDtv/h/pe9yjRVq6'),
-(2, 'Carlos PM', 'pm@demo.com', 'project_manager', '$2y$10$3ZZzNvgVe8cVluIKNJM8DeWT04pOpeKl8zd0NqDtv/h/pe9yjRVq6'),
-(3, 'Ana Colaboradora', 'colaborador@demo.com', 'colaborador', '$2y$10$3ZZzNvgVe8cVluIKNJM8DeWT04pOpeKl8zd0NqDtv/h/pe9yjRVq6'),
-(4, 'Roberto Cliente', 'cliente@demo.com', 'cliente', '$2y$10$3ZZzNvgVe8cVluIKNJM8DeWT04pOpeKl8zd0NqDtv/h/pe9yjRVq6')
-ON DUPLICATE KEY UPDATE `role`=VALUES(`role`);
+-- 12. Respuestas a tickets
+CREATE TABLE IF NOT EXISTS `ticket_replies` (
+    `id` INT AUTO_INCREMENT PRIMARY KEY,
+    `ticket_id` INT NOT NULL,
+    `user_id` INT NOT NULL,
+    `message` TEXT NOT NULL,
+    `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT `fk_replies_ticket` FOREIGN KEY (`ticket_id`) REFERENCES `tickets` (`id`) ON DELETE CASCADE,
+    CONSTRAINT `fk_replies_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-INSERT INTO `projects` (`id`, `user_id`, `name`, `description`, `category`, `status`, `color`, `deadline`) VALUES
-(1, 1, 'Rediseño E-commerce 2026', 'Modernización de la interfaz de usuario, pasarela de pagos y panel de control para clientes.', 'Diseño & UI/UX', 'activo', '#6366F1', DATE_ADD(CURRENT_DATE, INTERVAL 21 DAY)),
-(2, 1, 'App Móvil de Entregas', 'Aplicación interna para seguimiento y asignación de rutas a repartidores.', 'Móvil', 'activo', '#0EA5E9', DATE_ADD(CURRENT_DATE, INTERVAL 45 DAY))
-ON DUPLICATE KEY UPDATE `id`=`id`;
+-- 13. Configuración global de la aplicación (nombre, logo)
+CREATE TABLE IF NOT EXISTS `app_settings` (
+    `setting_key` VARCHAR(50) PRIMARY KEY,
+    `setting_value` TEXT NULL,
+    `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-INSERT INTO `project_folders` (`id`, `project_id`, `name`, `color`) VALUES
-(1, 1, 'Diseño & Wireframes', '#6366F1'),
-(2, 1, 'Documentación & APIs', '#0EA5E9')
-ON DUPLICATE KEY UPDATE `id`=`id`;
-
-INSERT INTO `tasks` (`project_id`, `title`, `description`, `priority`, `status`, `assigned_to`, `due_date`) VALUES
-(1, 'Diseño de Wireframes en Figma', 'Crear flujo completo de checkout y carrito interactivo.', 'alta', 'completada', 'Equipo UI', DATE_ADD(CURRENT_DATE, INTERVAL -2 DAY)),
-(1, 'Integración de Pasarela Stripe', 'Configurar webhooks y cobros con tarjetas internacionales.', 'urgente', 'en_progreso', 'Backend Dev', DATE_ADD(CURRENT_DATE, INTERVAL 5 DAY)),
-(1, 'Optimización Core Web Vitals', 'Comprimir imágenes webp y revisar script de Tailwind.', 'media', 'pendiente', 'Frontend Dev', DATE_ADD(CURRENT_DATE, INTERVAL 10 DAY));
-
-INSERT INTO `checklists` (`id`, `project_id`, `title`) VALUES
-(1, 1, 'Control de Calidad (QA Pre-lanzamiento)'),
-(2, 1, 'Checklist de Configuración SEO')
-ON DUPLICATE KEY UPDATE `id`=`id`;
-
-INSERT INTO `checklist_items` (`checklist_id`, `title`, `is_completed`) VALUES
-(1, 'Verificación de responsive en móviles y tablets', 1),
-(1, 'Pruebas de cobro en sandbox con tarjeta de test', 1),
-(1, 'Test de recuperación de contraseña por email', 0),
-(1, 'Revisión de políticas de privacidad y términos', 0),
-(2, 'Metadatos Open Graph y Twitter Cards', 1),
-(2, 'Generación de sitemap.xml y robots.txt', 0);
-
-INSERT INTO `tickets` (`project_id`, `user_id`, `title`, `description`, `priority`, `status`) VALUES
-(1, 1, 'Error al autocompletar dirección de entrega', 'En iOS Safari el dropdown de ciudades se oculta detrás del modal.', 'alta', 'abierto'),
-(1, 1, 'Ajuste de textos en el email de confirmación', 'El cliente solicita cambiar el remitente y logo corporativo.', 'baja', 'resuelto');
-
-INSERT INTO `project_links` (`project_id`, `folder_id`, `title`, `url`) VALUES
-(1, 1, 'Figma - Sistema de Diseño', 'https://www.figma.com'),
-(1, 2, 'Repositorio GitHub', 'https://github.com'),
-(1, 2, 'Documentación de API Stripe', 'https://stripe.com/docs');
-
-INSERT INTO `comments` (`project_id`, `user_id`, `content`) VALUES
-(1, 1, '¡Hemos avanzado un 50% del proyecto esta semana! Recuerden revisar el checklist de QA antes del viernes.'),
-(1, 1, 'Se han subido las credenciales de prueba al entorno de staging.');
+INSERT IGNORE INTO `app_settings` (`setting_key`, `setting_value`) VALUES
+    ('app_name', 'FlowTasks'),
+    ('app_logo', ''),
+    ('app_logo_type', 'icon');

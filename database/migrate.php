@@ -1,37 +1,135 @@
 <?php
-// Solo ejecutable desde línea de comandos: php database/migrate.php
+// database/migrate.php - Ejecutor de migraciones SQL versionadas (solo CLI)
+//
+// Uso:
+//   php database/migrate.php            Aplica las migraciones pendientes de database/migrations/
+//   php database/migrate.php --status   Muestra qué migraciones están aplicadas y cuáles pendientes
+//   php database/migrate.php --seed     Carga los datos de demostración (database/seeds/demo.sql)
+//
+// Cada archivo NNNN_nombre.sql se aplica una sola vez y queda registrado en la tabla schema_migrations.
+// Nota: en MySQL las sentencias DDL (CREATE/ALTER) confirman la transacción de forma implícita,
+// así que si una migración falla a mitad hay que revisar su estado antes de reintentar.
 if (PHP_SAPI !== 'cli') {
     http_response_code(404);
     exit;
 }
-// database/migrate.php - Migración para soporte de adjuntos y checklists vinculados a tareas
+
 require_once __DIR__ . '/../config/database.php';
 
-try {
-    $db = getDB();
+$args = array_slice($argv, 1);
+$db = getDB();
+$migrationsDir = __DIR__ . '/migrations';
 
-    // 1. Agregar task_id a project_files si no existe
-    $colsTaskFiles = $db->query("SHOW COLUMNS FROM project_files LIKE 'task_id'")->fetchAll();
-    if (empty($colsTaskFiles)) {
-        $db->exec("ALTER TABLE `project_files` ADD COLUMN `task_id` INT NULL AFTER `folder_id`");
-        $db->exec("ALTER TABLE `project_files` ADD CONSTRAINT `fk_files_task` FOREIGN KEY (`task_id`) REFERENCES `tasks` (`id`) ON DELETE CASCADE");
+/**
+ * Divide un script SQL en sentencias, respetando cadenas entre comillas y comentarios.
+ */
+function splitSqlStatements(string $sql): array {
+    $statements = [];
+    $current = '';
+    $len = strlen($sql);
+    $quote = null;
+
+    for ($i = 0; $i < $len; $i++) {
+        $ch = $sql[$i];
+
+        if ($quote !== null) {
+            $current .= $ch;
+            if ($ch === '\\' && $i + 1 < $len) {
+                $current .= $sql[++$i];
+            } elseif ($ch === $quote) {
+                $quote = null;
+            }
+            continue;
+        }
+
+        // Comentario de línea: -- hasta el final de la línea
+        if ($ch === '-' && ($sql[$i + 1] ?? '') === '-') {
+            while ($i < $len && $sql[$i] !== "\n") {
+                $i++;
+            }
+            $current .= "\n";
+            continue;
+        }
+
+        if ($ch === "'" || $ch === '"' || $ch === '`') {
+            $quote = $ch;
+        }
+
+        if ($ch === ';') {
+            if (trim($current) !== '') {
+                $statements[] = trim($current);
+            }
+            $current = '';
+            continue;
+        }
+
+        $current .= $ch;
     }
 
-    // 2. Agregar task_id a project_links si no existe
-    $colsTaskLinks = $db->query("SHOW COLUMNS FROM project_links LIKE 'task_id'")->fetchAll();
-    if (empty($colsTaskLinks)) {
-        $db->exec("ALTER TABLE `project_links` ADD COLUMN `task_id` INT NULL AFTER `folder_id`");
-        $db->exec("ALTER TABLE `project_links` ADD CONSTRAINT `fk_links_task` FOREIGN KEY (`task_id`) REFERENCES `tasks` (`id`) ON DELETE CASCADE");
+    if (trim($current) !== '') {
+        $statements[] = trim($current);
     }
-
-    // 3. Agregar task_id a checklists si no existe
-    $colsTaskChecklists = $db->query("SHOW COLUMNS FROM checklists LIKE 'task_id'")->fetchAll();
-    if (empty($colsTaskChecklists)) {
-        $db->exec("ALTER TABLE `checklists` ADD COLUMN `task_id` INT NULL AFTER `project_id`");
-        $db->exec("ALTER TABLE `checklists` ADD CONSTRAINT `fk_checklists_task` FOREIGN KEY (`task_id`) REFERENCES `tasks` (`id`) ON DELETE CASCADE");
-    }
-
-    echo "Migración de adjuntos y checklists para tareas completada con éxito.\n";
-} catch (Exception $e) {
-    echo "Aviso de migración: " . $e->getMessage() . "\n";
+    return $statements;
 }
+
+function runSqlFile(PDO $db, string $path): void {
+    foreach (splitSqlStatements(file_get_contents($path)) as $statement) {
+        $db->exec($statement);
+    }
+}
+
+function appliedVersions(PDO $db): array {
+    $exists = $db->query("SHOW TABLES LIKE 'schema_migrations'")->fetchColumn();
+    if (!$exists) {
+        return [];
+    }
+    return $db->query("SELECT version FROM schema_migrations")->fetchAll(PDO::FETCH_COLUMN);
+}
+
+$files = glob($migrationsDir . '/*.sql');
+sort($files, SORT_STRING);
+
+// --seed: datos de demostración
+if (in_array('--seed', $args, true)) {
+    if (isProduction() && !in_array('--force', $args, true)) {
+        fwrite(STDERR, "APP_ENV=production: los datos demo crean cuentas con contraseña conocida. Usa --force si de verdad lo necesitas.\n");
+        exit(1);
+    }
+    runSqlFile($db, __DIR__ . '/seeds/demo.sql');
+    echo "Datos de demostración cargados.\n";
+    exit(0);
+}
+
+$applied = appliedVersions($db);
+
+// --status: listado
+if (in_array('--status', $args, true)) {
+    foreach ($files as $file) {
+        $version = basename($file, '.sql');
+        echo (in_array($version, $applied, true) ? '[aplicada]  ' : '[pendiente] ') . $version . "\n";
+    }
+    exit(0);
+}
+
+$pending = array_filter($files, fn($f) => !in_array(basename($f, '.sql'), $applied, true));
+if (empty($pending)) {
+    echo "No hay migraciones pendientes.\n";
+    exit(0);
+}
+
+foreach ($pending as $file) {
+    $version = basename($file, '.sql');
+    echo "Aplicando {$version}... ";
+    try {
+        runSqlFile($db, $file);
+        $db->prepare("INSERT IGNORE INTO schema_migrations (version) VALUES (?)")->execute([$version]);
+        echo "OK\n";
+    } catch (PDOException $e) {
+        echo "ERROR\n";
+        fwrite(STDERR, $e->getMessage() . "\n");
+        fwrite(STDERR, "Se detiene la ejecución. Las migraciones anteriores ya quedaron aplicadas.\n");
+        exit(1);
+    }
+}
+
+echo "Migraciones completadas.\n";

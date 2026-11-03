@@ -127,20 +127,40 @@ switch ($action) {
             exit;
         }
 
-        // Si no se proporcionó número, auto-generar uno correlativo
-        if (empty($invoiceNumber)) {
-            $stmtCount = $db->prepare("SELECT COUNT(*) FROM invoices WHERE project_id = ?");
-            $stmtCount->execute([$projectId]);
-            $count = (int)$stmtCount->fetchColumn() + 1;
-            $invoiceNumber = 'INV-' . date('Y') . '-' . str_pad($count, 3, '0', STR_PAD_LEFT);
-        }
+        $db->beginTransaction();
+        try {
+            // Bloquear la fila del proyecto para serializar la numeración entre peticiones simultáneas
+            $db->prepare("SELECT id FROM projects WHERE id = ? FOR UPDATE")->execute([$projectId]);
 
-        $stmt = $db->prepare("
-            INSERT INTO invoices (project_id, invoice_number, concept, amount, currency, status, due_date, paid_at, notes) 
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ");
-        $stmt->execute([$projectId, $invoiceNumber, $concept, $amount, $currency, $status, $dueDate, $paidAt, $notes]);
-        $invId = (int)$db->lastInsertId();
+            // Si no se proporcionó número, auto-generar el siguiente correlativo libre
+            if (empty($invoiceNumber)) {
+                $stmtCount = $db->prepare("SELECT COUNT(*) FROM invoices WHERE project_id = ?");
+                $stmtCount->execute([$projectId]);
+                $next = (int)$stmtCount->fetchColumn() + 1;
+
+                $stmtExists = $db->prepare("SELECT 1 FROM invoices WHERE project_id = ? AND invoice_number = ?");
+                do {
+                    $invoiceNumber = 'INV-' . date('Y') . '-' . str_pad($next++, 3, '0', STR_PAD_LEFT);
+                    $stmtExists->execute([$projectId, $invoiceNumber]);
+                } while ($stmtExists->fetchColumn());
+            }
+
+            $stmt = $db->prepare("
+                INSERT INTO invoices (project_id, invoice_number, concept, amount, currency, status, due_date, paid_at, notes)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ");
+            $stmt->execute([$projectId, $invoiceNumber, $concept, $amount, $currency, $status, $dueDate, $paidAt, $notes]);
+            $invId = (int)$db->lastInsertId();
+            $db->commit();
+        } catch (PDOException $e) {
+            $db->rollBack();
+            // 1062: entrada duplicada en el índice único (project_id, invoice_number)
+            if (($e->errorInfo[1] ?? null) === 1062) {
+                echo json_encode(['success' => false, 'message' => 'Ya existe una factura con ese número en este proyecto']);
+                exit;
+            }
+            throw $e;
+        }
 
         echo json_encode([
             'success' => true,
