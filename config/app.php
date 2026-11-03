@@ -4,6 +4,7 @@
 // para que las páginas existentes sigan funcionando sin cambios.
 
 use App\Repository\AgencyRepository;
+use App\Repository\ConnectionRepository;
 use App\Repository\InvitationRepository;
 use App\Repository\ProjectRepository;
 use App\Security\Csrf;
@@ -127,6 +128,11 @@ function agencyRepository(): AgencyRepository {
 function invitationRepository(): InvitationRepository {
     static $repo = null;
     return $repo ??= new InvitationRepository(getDB());
+}
+
+function connectionRepository(): ConnectionRepository {
+    static $repo = null;
+    return $repo ??= new ConnectionRepository(getDB(), agencyRepository());
 }
 
 function accountService(): AccountService {

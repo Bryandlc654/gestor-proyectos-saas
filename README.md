@@ -11,6 +11,7 @@ Un sistema de gestión ágil, moderno e intuitivo desarrollado en **PHP 8**, **M
 - **Registro = nueva agencia**: quien se registra crea su agencia y queda como administrador. Ya no se puede elegir rol al registrarse.
 - **Invitaciones por enlace**: el administrador invita a su equipo o a sus clientes desde *Usuarios → Invitar*, eligiendo el rol. El enlace sirve una sola vez, caduca a los 7 días y se puede revocar; en la base de datos solo se guarda su hash.
 - Los roles (administrador, project manager, colaborador, cliente) funcionan igual que antes, pero siempre dentro de la propia agencia.
+- **Agencias conectadas**: cada agencia tiene un código (p. ej. `ABCD-2345`) que su administrador puede compartir y regenerar. Otra agencia lo introduce en *Agencias conectadas*, y la primera acepta o rechaza la solicitud; cualquiera de las dos puede desconectarse después. Conectarse no comparte ningún contenido: solo habilita que más adelante se compartan proyectos. En los datos demo los códigos son `AGDM-2345` (Agencia Demo) y `NRTE-6789` (Estudio Norte).
 
 ### 1. Autenticación y Seguridad
 - **Inicio de sesión y registro de agencias** con validación y contraseñas cifradas mediante `password_hash()` con algoritmo **BCrypt**.

@@ -38,6 +38,50 @@ final class AgencyRepository
         $this->db->prepare("UPDATE agencies SET logo = ? WHERE id = ?")->execute([$logo, $id]);
     }
 
+    // Código de conexión: 8 caracteres sin los que se confunden al dictarlos (0/O, 1/I), como "ABCD-2345"
+    private const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+
+    /** Código público para que otra agencia solicite conectarse. Se genera la primera vez. */
+    public function connectCode(int $id): string
+    {
+        $stmt = $this->db->prepare("SELECT connect_code FROM agencies WHERE id = ?");
+        $stmt->execute([$id]);
+        return $stmt->fetchColumn() ?: $this->regenerateConnectCode($id);
+    }
+
+    /** Sustituye el código (el anterior deja de servir). Las conexiones ya hechas se mantienen. */
+    public function regenerateConnectCode(int $id): string
+    {
+        for ($attempt = 0; ; $attempt++) {
+            $code = '';
+            for ($i = 0; $i < 8; $i++) {
+                $code .= self::CODE_ALPHABET[random_int(0, strlen(self::CODE_ALPHABET) - 1)];
+            }
+            $code = substr($code, 0, 4) . '-' . substr($code, 4);
+            try {
+                $this->db->prepare("UPDATE agencies SET connect_code = ? WHERE id = ?")->execute([$code, $id]);
+                return $code;
+            } catch (\PDOException $e) {
+                if ($attempt >= 4) {
+                    throw $e; // colisión repetida: el error no es un código duplicado
+                }
+            }
+        }
+    }
+
+    /** Acepta el código con o sin guion, en minúsculas o con espacios. */
+    public function findByConnectCode(string $code): ?array
+    {
+        $code = preg_replace('/[^A-Z0-9]/', '', strtoupper($code));
+        if (strlen($code) !== 8) {
+            return null;
+        }
+        $stmt = $this->db->prepare("SELECT id FROM agencies WHERE connect_code = ?");
+        $stmt->execute([substr($code, 0, 4) . '-' . substr($code, 4)]);
+        $id = $stmt->fetchColumn();
+        return $id ? $this->find((int)$id) : null;
+    }
+
     // Comprobación explícita para operaciones que reciben ids de otro usuario o proyecto
     public function userBelongs(int $userId, int $agencyId): bool
     {

@@ -2,9 +2,10 @@
 -- Uso: php database/migrate.php --seed
 
 -- Dos agencias independientes: cada una solo ve sus propios usuarios y proyectos
-INSERT INTO `agencies` (`id`, `name`) VALUES
-(1, 'Agencia Demo'),
-(2, 'Estudio Norte')
+-- Códigos de conexión fijos para poder probar la conexión entre agencias
+INSERT INTO `agencies` (`id`, `name`, `connect_code`) VALUES
+(1, 'Agencia Demo', 'AGDM-2345'),
+(2, 'Estudio Norte', 'NRTE-6789')
 ON DUPLICATE KEY UPDATE `id`=`id`;
 
 INSERT INTO `users` (`id`, `agency_id`, `name`, `email`, `role`, `password`) VALUES
