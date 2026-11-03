@@ -179,10 +179,10 @@ switch ($action) {
                 SELECT c.*, u.name as author_name 
                 FROM comments c 
                 INNER JOIN users u ON c.user_id = u.id 
-                WHERE c.task_id = ? 
+                WHERE c.task_id = ? AND c.project_id = ?
                 ORDER BY c.created_at ASC
             ");
-            $stmtComments->execute([$taskId]);
+            $stmtComments->execute([$taskId, $projectId]);
             $taskComments = $stmtComments->fetchAll();
 
             foreach ($taskComments as $c) {
@@ -201,8 +201,8 @@ switch ($action) {
             }
 
             // 2. Obtener checklists y sus items mediante Eager Loading (2 queries en lugar de N+1)
-            $stmtChk = $db->prepare("SELECT * FROM checklists WHERE task_id = ? ORDER BY created_at ASC");
-            $stmtChk->execute([$taskId]);
+            $stmtChk = $db->prepare("SELECT * FROM checklists WHERE task_id = ? AND project_id = ? ORDER BY created_at ASC");
+            $stmtChk->execute([$taskId, $projectId]);
             $taskChecklists = $stmtChk->fetchAll();
             if (!empty($taskChecklists)) {
                 $taskChkIds = array_column($taskChecklists, 'id');
@@ -230,25 +230,25 @@ switch ($action) {
             }
 
             // 3. Obtener archivos adjuntos de esta tarea
-            $stmtF = $db->prepare("SELECT * FROM project_files WHERE task_id = ? ORDER BY created_at DESC");
-            $stmtF->execute([$taskId]);
+            $stmtF = $db->prepare("SELECT * FROM project_files WHERE task_id = ? AND project_id = ? ORDER BY created_at DESC");
+            $stmtF->execute([$taskId, $projectId]);
             $taskFiles = $stmtF->fetchAll();
             $filesList = array_map(fn($f) => [
                 'id' => $f['id'],
                 'original_name' => e($f['original_name']),
                 'file_size' => formatBytes($f['file_size']),
                 'created_at' => formatDate($f['created_at']),
-                'download_url' => "actions/file-actions.php?action=download&id={$f['id']}&csrf_token={$csrf}"
+                'download_url' => "actions/file-actions.php?action=download&id={$f['id']}"
             ], $taskFiles);
 
             // 4. Obtener enlaces de esta tarea
-            $stmtL = $db->prepare("SELECT * FROM project_links WHERE task_id = ? ORDER BY created_at DESC");
-            $stmtL->execute([$taskId]);
+            $stmtL = $db->prepare("SELECT * FROM project_links WHERE task_id = ? AND project_id = ? ORDER BY created_at DESC");
+            $stmtL->execute([$taskId, $projectId]);
             $taskLinks = $stmtL->fetchAll();
             $linksList = array_map(fn($l) => [
                 'id' => $l['id'],
                 'title' => e($l['title']),
-                'url' => e($l['url']),
+                'url' => isSafeUrl($l['url']) ? e($l['url']) : '#',
                 'created_at' => formatDate($l['created_at'])
             ], $taskLinks);
         }

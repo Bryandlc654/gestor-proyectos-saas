@@ -44,13 +44,19 @@ switch ($action) {
             exit;
         }
 
-        if (!filter_var($url, FILTER_VALIDATE_URL)) {
+        if (!isSafeUrl($url)) {
             echo json_encode(['success' => false, 'message' => 'URL no válida (incluye http:// o https://)']);
             exit;
         }
 
         $folderId = !empty($_POST['folder_id']) ? (int)$_POST['folder_id'] : null;
         $taskId = !empty($_POST['task_id']) ? (int)$_POST['task_id'] : null;
+
+        if (($folderId && !folderBelongsToProject($folderId, $projectId)) || ($taskId && !taskBelongsToProject($taskId, $projectId))) {
+            http_response_code(400);
+            echo json_encode(['success' => false, 'message' => 'La carpeta o tarea no pertenece a este proyecto']);
+            exit;
+        }
 
         $stmt = $db->prepare("INSERT INTO project_links (project_id, folder_id, task_id, title, url) VALUES (?, ?, ?, ?, ?)");
         $stmt->execute([$projectId, $folderId, $taskId, $title, $url]);

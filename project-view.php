@@ -45,8 +45,15 @@ $canManageChecklists = canManageChecklists($userRole);
 $canManageAttachments = canManageAttachments($userRole);
 $isClient = isCliente();
 
-// 2. Obtener Lista de Colaboradores
-$stmtCollabs = $db->query("SELECT id, name, email FROM users ORDER BY name ASC");
+// 2. Obtener Lista de Colaboradores (solo miembros de este proyecto y su propietario)
+$stmtCollabs = $db->prepare("
+    SELECT u.id, u.name
+    FROM users u
+    WHERE u.id IN (SELECT user_id FROM project_members WHERE project_id = ?)
+       OR u.id = (SELECT user_id FROM projects WHERE id = ?)
+    ORDER BY u.name ASC
+");
+$stmtCollabs->execute([$projectId, $projectId]);
 $collaborators = $stmtCollabs->fetchAll();
 
 // 3. Obtener Carpetas de Adjuntos
@@ -1020,7 +1027,7 @@ require_once __DIR__ . '/includes/sidebar.php';
                             </div>
 
                             <div class="flex items-center gap-1 flex-shrink-0">
-                                <a href="actions/file-actions.php?action=download&id=<?= $file['id'] ?>&csrf_token=<?= csrf_token() ?>" class="p-1.5 rounded-lg bg-slate-100 hover:bg-brand-50 text-slate-600 hover:text-brand-600 transition" title="Descargar">
+                                <a href="actions/file-actions.php?action=download&id=<?= $file['id'] ?>" class="p-1.5 rounded-lg bg-slate-100 hover:bg-brand-50 text-slate-600 hover:text-brand-600 transition" title="Descargar">
                                     <i data-lucide="download" class="w-3.5 h-3.5"></i>
                                 </a>
                                 <?php if ($canManageAttachments || $file['user_id'] == $user['id']): ?>
@@ -1066,7 +1073,7 @@ require_once __DIR__ . '/includes/sidebar.php';
                                         </button>
                                     <?php endif; ?>
 
-                                    <a href="<?= e($link['url']) ?>" target="_blank" rel="noopener noreferrer" class="text-[11px] text-brand-600 hover:underline truncate block mt-0.5">
+                                    <a href="<?= isSafeUrl($link['url']) ? e($link['url']) : '#' ?>" target="_blank" rel="noopener noreferrer" class="text-[11px] text-brand-600 hover:underline truncate block mt-0.5">
                                         <?= e($link['url']) ?>
                                     </a>
                                 </div>
@@ -2231,7 +2238,7 @@ require_once __DIR__ . '/includes/sidebar.php';
                                     <span class="text-[10px] text-slate-400">${c.created_at}</span>
                                     ${c.can_manage ? `
                                         <div class="opacity-0 group-hover:opacity-100 transition flex items-center gap-1">
-                                            <button onclick="openEditCommentModal(${c.id}, ${JSON.stringify(c.raw_content || '')})" class="p-0.5 text-slate-400 hover:text-brand-600 rounded" title="Editar">
+                                            <button onclick="openEditCommentModal(${c.id}, ${jsAttrArg(c.raw_content || '')})" class="p-0.5 text-slate-400 hover:text-brand-600 rounded" title="Editar">
                                                 <i data-lucide="edit-2" class="w-3 h-3"></i>
                                             </button>
                                             <button onclick="deleteCommentAjax(${c.id})" class="p-0.5 text-slate-400 hover:text-rose-600 rounded" title="Eliminar">
@@ -2269,7 +2276,7 @@ require_once __DIR__ . '/includes/sidebar.php';
                                             <span class="text-[9px] text-slate-400">${rep.created_at}</span>
                                             ${rep.can_manage ? `
                                                 <div class="opacity-0 group-hover/mreply:opacity-100 transition flex items-center gap-0.5">
-                                                    <button onclick="openEditCommentModal(${rep.id}, ${JSON.stringify(rep.raw_content || '')})" class="p-0.5 text-slate-400 hover:text-brand-600 rounded" title="Editar">
+                                                    <button onclick="openEditCommentModal(${rep.id}, ${jsAttrArg(rep.raw_content || '')})" class="p-0.5 text-slate-400 hover:text-brand-600 rounded" title="Editar">
                                                         <i data-lucide="edit-2" class="w-2.5 h-2.5"></i>
                                                     </button>
                                                     <button onclick="deleteCommentAjax(${rep.id})" class="p-0.5 text-slate-400 hover:text-rose-600 rounded" title="Eliminar">
@@ -2606,7 +2613,7 @@ require_once __DIR__ . '/includes/sidebar.php';
                             <div class="flex items-center gap-2">
                                 <span class="text-[10px] text-slate-400">${c.created_at}</span>
                                 <div class="opacity-0 group-hover:opacity-100 transition flex items-center gap-1">
-                                    <button onclick="openEditCommentModal(${c.id}, ${JSON.stringify(c.raw_content || '')})" class="p-0.5 text-slate-400 hover:text-brand-600 rounded" title="Editar">
+                                    <button onclick="openEditCommentModal(${c.id}, ${jsAttrArg(c.raw_content || '')})" class="p-0.5 text-slate-400 hover:text-brand-600 rounded" title="Editar">
                                         <i data-lucide="edit-2" class="w-3 h-3"></i>
                                     </button>
                                     <button onclick="deleteCommentAjax(${c.id})" class="p-0.5 text-slate-400 hover:text-rose-600 rounded" title="Eliminar">
@@ -2648,7 +2655,7 @@ require_once __DIR__ . '/includes/sidebar.php';
                                 <div class="flex items-center gap-2">
                                     <span class="text-[10px] text-slate-400">${c.created_at}</span>
                                     <div class="opacity-0 group-hover:opacity-100 transition flex items-center gap-1">
-                                        <button onclick="openEditCommentModal(${c.id}, ${JSON.stringify(c.raw_content || '')})" class="p-1 text-slate-400 hover:text-brand-600 rounded" title="Editar">
+                                        <button onclick="openEditCommentModal(${c.id}, ${jsAttrArg(c.raw_content || '')})" class="p-1 text-slate-400 hover:text-brand-600 rounded" title="Editar">
                                             <i data-lucide="edit-2" class="w-3 h-3"></i>
                                         </button>
                                         <button onclick="deleteCommentAjax(${c.id})" class="p-1 text-slate-400 hover:text-rose-600 rounded" title="Eliminar">
@@ -3278,6 +3285,17 @@ require_once __DIR__ . '/includes/sidebar.php';
     }
 
     // ----------------- EDICIÓN Y ELIMINACIÓN DE COMENTARIOS -----------------
+    // Serializa un valor para usarlo como argumento JS dentro de un atributo HTML (onclick="...")
+    // JSON.stringify sin escapar permite romper el atributo con comillas e inyectar código.
+    function jsAttrArg(value) {
+        return JSON.stringify(value)
+            .replace(/&/g, '&amp;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;');
+    }
+
     function openEditCommentModal(commentId, currentText) {
         document.getElementById('edit-comment-id').value = commentId;
         document.getElementById('edit-comment-content').value = currentText || '';
@@ -3432,7 +3450,7 @@ require_once __DIR__ . '/includes/sidebar.php';
                                 <div class="flex items-center gap-1.5">
                                     <span class="text-[9px] text-slate-400">${rep.created_at}</span>
                                     <div class="opacity-0 group-hover/reply:opacity-100 transition flex items-center gap-0.5">
-                                        <button onclick="openEditCommentModal(${rep.id}, ${JSON.stringify(rep.raw_content || '')})" class="p-0.5 text-slate-400 hover:text-brand-600 rounded" title="Editar">
+                                        <button onclick="openEditCommentModal(${rep.id}, ${jsAttrArg(rep.raw_content || '')})" class="p-0.5 text-slate-400 hover:text-brand-600 rounded" title="Editar">
                                             <i data-lucide="edit-2" class="w-2.5 h-2.5"></i>
                                         </button>
                                         <button onclick="deleteCommentAjax(${rep.id})" class="p-0.5 text-slate-400 hover:text-rose-600 rounded" title="Eliminar">
@@ -3464,7 +3482,7 @@ require_once __DIR__ . '/includes/sidebar.php';
                                 <div class="flex items-center gap-1.5">
                                     <span class="text-[9px] text-slate-400">${rep.created_at}</span>
                                     <div class="opacity-0 group-hover/mreply:opacity-100 transition flex items-center gap-0.5">
-                                        <button onclick="openEditCommentModal(${rep.id}, ${JSON.stringify(rep.raw_content || '')})" class="p-0.5 text-slate-400 hover:text-brand-600 rounded" title="Editar">
+                                        <button onclick="openEditCommentModal(${rep.id}, ${jsAttrArg(rep.raw_content || '')})" class="p-0.5 text-slate-400 hover:text-brand-600 rounded" title="Editar">
                                             <i data-lucide="edit-2" class="w-2.5 h-2.5"></i>
                                         </button>
                                         <button onclick="deleteCommentAjax(${rep.id})" class="p-0.5 text-slate-400 hover:text-rose-600 rounded" title="Eliminar">
@@ -3552,7 +3570,7 @@ require_once __DIR__ . '/includes/sidebar.php';
                                 <div class="flex items-center gap-1.5">
                                     <span class="text-[9px] text-slate-400">${rep.created_at}</span>
                                     <div class="opacity-0 group-hover/mreply:opacity-100 transition flex items-center gap-0.5">
-                                        <button onclick="openEditCommentModal(${rep.id}, ${JSON.stringify(rep.raw_content || '')})" class="p-0.5 text-slate-400 hover:text-brand-600 rounded" title="Editar">
+                                        <button onclick="openEditCommentModal(${rep.id}, ${jsAttrArg(rep.raw_content || '')})" class="p-0.5 text-slate-400 hover:text-brand-600 rounded" title="Editar">
                                             <i data-lucide="edit-2" class="w-2.5 h-2.5"></i>
                                         </button>
                                         <button onclick="deleteCommentAjax(${rep.id})" class="p-0.5 text-slate-400 hover:text-rose-600 rounded" title="Eliminar">

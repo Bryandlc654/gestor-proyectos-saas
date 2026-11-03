@@ -16,7 +16,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $name = trim($_POST['name'] ?? '');
     $email = trim($_POST['email'] ?? '');
     $roleInput = $_POST['role'] ?? 'colaborador';
-    $role = in_array($roleInput, ['colaborador', 'project_manager', 'cliente', 'admin']) ? $roleInput : 'colaborador';
+    $role = in_array($roleInput, ['colaborador', 'project_manager', 'cliente'], true) ? $roleInput : 'colaborador';
     $password = $_POST['password'] ?? '';
     $password_confirm = $_POST['password_confirm'] ?? '';
     $token = $_POST['csrf_token'] ?? '';
@@ -27,8 +27,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $error = 'Todos los campos son obligatorios.';
     } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
         $error = 'El correo electrónico no tiene un formato válido.';
-    } elseif (strlen($password) < 6) {
-        $error = 'La contraseña debe tener al menos 6 caracteres.';
+    } elseif (strlen($password) < 8) {
+        $error = 'La contraseña debe tener al menos 8 caracteres.';
     } elseif ($password !== $password_confirm) {
         $error = 'Las contraseñas no coinciden.';
     } else {
@@ -52,8 +52,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $_SESSION['user_email'] = $email;
             $_SESSION['user_role'] = $role;
 
-            // Opcional: Crear un proyecto de bienvenida si es PM o Admin
-            if ($role === 'project_manager' || $role === 'admin') {
+            // Crear un proyecto de bienvenida si es PM
+            if ($role === 'project_manager') {
                 $defaultProject = $db->prepare("INSERT INTO projects (user_id, name, description, category, status, color, deadline) VALUES (?, ?, ?, ?, ?, ?, DATE_ADD(CURRENT_DATE, INTERVAL 14 DAY))");
                 $defaultProject->execute([$newUserId, 'Mi Primer Proyecto', 'Bienvenido a FlowTasks. Aquí puedes organizar tus tareas, checklists y recursos.', 'Desarrollo Web', 'activo', '#6366F1']);
                 $projId = $db->lastInsertId();
@@ -61,14 +61,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 // Crear tareas de bienvenida
                 $db->prepare("INSERT INTO tasks (project_id, title, description, priority, status) VALUES (?, ?, ?, ?, ?)")
                    ->execute([$projId, 'Explorar las secciones del proyecto', 'Revisa las pestañas de Checklists, Tickets, Archivos y Enlaces.', 'alta', 'pendiente']);
-            } else {
-                // Vincular al proyecto existente para que no esté vacío
-                $firstProj = $db->query("SELECT id FROM projects LIMIT 1")->fetchColumn();
-                if ($firstProj) {
-                    $db->prepare("INSERT IGNORE INTO project_members (project_id, user_id, role) VALUES (?, ?, ?)")
-                       ->execute([$firstProj, $newUserId, $role]);
-                }
             }
+            // Colaboradores y clientes no se vinculan automáticamente a ningún proyecto:
+            // un administrador o PM debe asignarlos explícitamente.
 
             setFlash('success', '¡Cuenta creada con éxito! Rol asignado: ' . ucfirst(str_replace('_', ' ', $role)));
             header('Location: dashboard.php');
@@ -158,13 +153,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             <option value="colaborador" <?= $role === 'colaborador' ? 'selected' : '' ?>>Colaborador (gestionar tareas, comentarios y adjuntos)</option>
                             <option value="project_manager" <?= $role === 'project_manager' ? 'selected' : '' ?>>Project Manager (crear y gestionar proyectos completos)</option>
                             <option value="cliente" <?= $role === 'cliente' ? 'selected' : '' ?>>Cliente (seguimiento, solo lectura + tickets y feedback)</option>
-                            <option value="admin" <?= $role === 'admin' ? 'selected' : '' ?>>Administrador (control total del sistema)</option>
                         </select>
                     </div>
                 </div>
 
                 <div>
-                    <label class="block text-xs font-semibold uppercase tracking-wider text-slate-700 mb-1.5">Contraseña (mínimo 6 caracteres)</label>
+                    <label class="block text-xs font-semibold uppercase tracking-wider text-slate-700 mb-1.5">Contraseña (mínimo 8 caracteres)</label>
                     <div class="relative">
                         <i data-lucide="lock" class="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5"></i>
                         <input type="password" name="password" required placeholder="••••••••" class="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent transition">

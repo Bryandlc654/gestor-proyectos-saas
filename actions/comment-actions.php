@@ -20,10 +20,8 @@ if (!verify_csrf($csrf)) {
     exit;
 }
 
-// Verificar pertenencia del proyecto
-$stmtProj = $db->prepare("SELECT id FROM projects WHERE id = ? AND user_id = ?");
-$stmtProj->execute([$projectId, $user['id']]);
-if (!$stmtProj->fetch()) {
+// Verificar acceso al proyecto según rol (propietario, miembro o admin)
+if (!canAccessProject($projectId, $user['id'], $user['role'])) {
     setFlash('error', 'Acceso no autorizado.');
     header('Location: ../dashboard.php');
     exit;

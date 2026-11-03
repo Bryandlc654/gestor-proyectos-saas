@@ -166,6 +166,16 @@ CREATE TABLE IF NOT EXISTS `comments` (
     CONSTRAINT `fk_comments_task` FOREIGN KEY (`task_id`) REFERENCES `tasks` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- 11. Registro de intentos fallidos de inicio de sesión (protección contra fuerza bruta)
+CREATE TABLE IF NOT EXISTS `login_attempts` (
+    `id` INT AUTO_INCREMENT PRIMARY KEY,
+    `email` VARCHAR(150) NOT NULL,
+    `ip_address` VARCHAR(45) NOT NULL,
+    `attempted_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX `idx_login_email_time` (`email`, `attempted_at`),
+    INDEX `idx_login_ip_time` (`ip_address`, `attempted_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 -- DATOS DE DEMOSTRACIÓN (Password: admin123 para todas las cuentas)
 INSERT INTO `users` (`id`, `name`, `email`, `role`, `password`) VALUES
 (1, 'Administrador Demo', 'admin@demo.com', 'admin', '$2y$10$3ZZzNvgVe8cVluIKNJM8DeWT04pOpeKl8zd0NqDtv/h/pe9yjRVq6'),

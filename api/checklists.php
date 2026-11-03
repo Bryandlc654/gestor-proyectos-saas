@@ -45,6 +45,12 @@ switch ($action) {
             exit;
         }
 
+        if ($taskId && !taskBelongsToProject($taskId, $projectId)) {
+            http_response_code(400);
+            echo json_encode(['success' => false, 'message' => 'La tarea no pertenece a este proyecto']);
+            exit;
+        }
+
         $stmt = $db->prepare("INSERT INTO checklists (project_id, task_id, title) VALUES (?, ?, ?)");
         $stmt->execute([$projectId, $taskId, $title]);
         $newId = (int)$db->lastInsertId();

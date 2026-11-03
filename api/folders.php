@@ -37,7 +37,7 @@ if (!canManageAttachments($user['role'])) {
 switch ($action) {
     case 'create':
         $name = trim($_POST['name'] ?? '');
-        $color = trim($_POST['color'] ?? '#6366F1');
+        $color = preg_match('/^#[0-9a-fA-F]{6}$/', $_POST['color'] ?? '') ? $_POST['color'] : '#6366F1';
 
         if (empty($name)) {
             echo json_encode(['success' => false, 'message' => 'El nombre de la carpeta es obligatorio']);

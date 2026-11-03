@@ -30,7 +30,7 @@ switch ($action) {
         $name = trim($_POST['name'] ?? '');
         $description = trim($_POST['description'] ?? '');
         $category = trim($_POST['category'] ?? 'Desarrollo Web');
-        $color = trim($_POST['color'] ?? '#4F46E5');
+        $color = preg_match('/^#[0-9a-fA-F]{6}$/', $_POST['color'] ?? '') ? $_POST['color'] : '#4F46E5';
         $deadline = !empty($_POST['deadline']) ? $_POST['deadline'] : null;
         $budget = floatval($_POST['budget'] ?? 0);
         $currency = trim($_POST['currency'] ?? 'USD');
@@ -57,7 +57,7 @@ switch ($action) {
         $projectId = (int)($_POST['project_id'] ?? 0);
         $name = trim($_POST['name'] ?? '');
         $description = trim($_POST['description'] ?? '');
-        $status = $_POST['status'] ?? 'activo';
+        $status = in_array($_POST['status'] ?? '', ['activo', 'en_espera', 'completado'], true) ? $_POST['status'] : 'activo';
         $deadline = !empty($_POST['deadline']) ? $_POST['deadline'] : null;
         $budget = isset($_POST['budget']) ? floatval($_POST['budget']) : null;
         $currency = trim($_POST['currency'] ?? 'USD');

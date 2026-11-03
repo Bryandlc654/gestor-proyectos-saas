@@ -38,14 +38,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         // Subida de nuevo logo
         if (!empty($_FILES['app_logo']['name']) && $_FILES['app_logo']['error'] === UPLOAD_ERR_OK) {
-            $allowedExtensions = ['png', 'jpg', 'jpeg', 'webp', 'svg'];
-            $fileInfo = pathinfo($_FILES['app_logo']['name']);
-            $extension = strtolower($fileInfo['extension'] ?? '');
+            // SVG no se admite: puede contener scripts. El formato se valida por el contenido real.
+            $mime = detectMime($_FILES['app_logo']['tmp_name']);
+            $extension = ALLOWED_IMAGE_MIMES[$mime] ?? null;
 
-            if (in_array($extension, $allowedExtensions)) {
+            if ($extension !== null) {
                 $uploadDir = __DIR__ . '/uploads/logo/';
                 if (!is_dir($uploadDir)) {
-                    mkdir($uploadDir, 0777, true);
+                    mkdir($uploadDir, 0755, true);
                 }
 
                 $filename = 'app_logo_' . time() . '.' . $extension;
@@ -64,7 +64,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     setFlash('error', 'Ocurrió un error al guardar el archivo del logo.');
                 }
             } else {
-                setFlash('error', 'Formato no soportado. Por favor sube una imagen en PNG, JPG, WEBP o SVG.');
+                setFlash('error', 'Formato no soportado. Por favor sube una imagen en PNG, JPG, WEBP o GIF.');
             }
         } else {
             setFlash('success', 'Configuración de marca guardada.');
@@ -167,14 +167,14 @@ require_once __DIR__ . '/includes/sidebar.php';
                 <div>
                     <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">Subir Nuevo Logo</label>
                     <div class="border-2 border-dashed border-slate-200 hover:border-brand-400 rounded-2xl p-6 text-center bg-slate-50/40 hover:bg-slate-50 transition cursor-pointer relative">
-                        <input type="file" name="app_logo" id="logo-file-input" accept="image/png, image/jpeg, image/webp, image/svg+xml" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer" onchange="previewLogo(this)">
+                        <input type="file" name="app_logo" id="logo-file-input" accept="image/png, image/jpeg, image/webp, image/gif" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer" onchange="previewLogo(this)">
                         
                         <div id="dropzone-default">
                             <div class="w-10 h-10 rounded-xl bg-brand-50 text-brand-600 flex items-center justify-center mx-auto mb-2">
                                 <i data-lucide="upload-cloud" class="w-5 h-5"></i>
                             </div>
                             <p class="text-xs font-semibold text-slate-700">Haz clic o arrastra tu archivo de logo aquí</p>
-                            <p class="text-[11px] text-slate-400 mt-1">Formatos recomendados: PNG o SVG con fondo transparente (máx. 2MB)</p>
+                            <p class="text-[11px] text-slate-400 mt-1">Formatos recomendados: PNG o WEBP con fondo transparente (máx. 2MB)</p>
                         </div>
 
                         <div id="dropzone-preview" class="hidden flex items-center justify-center gap-3">

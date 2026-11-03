@@ -6,11 +6,42 @@ if (!ob_get_level() && !headers_sent() && extension_loaded('zlib') && !ini_get('
     ob_start('ob_gzhandler');
 }
 
+require_once __DIR__ . '/database.php';
+
+// Detectar HTTPS (también detrás de proxy / balanceador)
+function isHttps(): bool {
+    return (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
+        || ($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') === 'https'
+        || (int)($_SERVER['SERVER_PORT'] ?? 0) === 443;
+}
+
+// Cabeceras de seguridad HTTP
+if (!headers_sent()) {
+    header('X-Content-Type-Options: nosniff');
+    header('X-Frame-Options: SAMEORIGIN');
+    header('Referrer-Policy: strict-origin-when-cross-origin');
+    header('Permissions-Policy: camera=(), microphone=(), geolocation=()');
+    header("Content-Security-Policy: frame-ancestors 'self'; object-src 'none'; base-uri 'self'; form-action 'self'");
+    if (isHttps()) {
+        header('Strict-Transport-Security: max-age=31536000; includeSubDomains');
+    }
+}
+
 if (session_status() === PHP_SESSION_NONE) {
+    ini_set('session.use_strict_mode', '1');
+    ini_set('session.use_only_cookies', '1');
+    session_set_cookie_params([
+        'lifetime' => 0,
+        'path'     => '/',
+        'secure'   => isHttps(),
+        'httponly' => true,
+        'samesite' => 'Lax',
+    ]);
     session_start();
 }
 
-require_once __DIR__ . '/database.php';
+// Flags para incrustar JSON de forma segura dentro de <script> (evita romper con </script>)
+const JSON_SCRIPT_FLAGS = JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT;
 
 // Sanitización rápida de cadenas para prevenir XSS
 function e(?string $value): string {
@@ -168,6 +199,102 @@ function canCreateTickets(?string $userRole = null): bool {
     return true;
 }
 
+// Puede cambiar el estado de tickets: admin, project_manager, colaborador (cliente NO)
+function canChangeTicketStatus(?string $userRole = null): bool {
+    $role = $userRole ?? currentUserRole();
+    return in_array($role, ['admin', 'project_manager', 'colaborador']);
+}
+
+// Puede eliminar tickets: admin, project_manager
+function canDeleteTickets(?string $userRole = null): bool {
+    $role = $userRole ?? currentUserRole();
+    return in_array($role, ['admin', 'project_manager']);
+}
+
+// Comprobar que una tarea pertenece al proyecto indicado (evita mezclar datos entre proyectos)
+function taskBelongsToProject(int $taskId, int $projectId): bool {
+    $stmt = getDB()->prepare("SELECT 1 FROM tasks WHERE id = ? AND project_id = ?");
+    $stmt->execute([$taskId, $projectId]);
+    return (bool)$stmt->fetchColumn();
+}
+
+// Comprobar que una carpeta pertenece al proyecto indicado
+function folderBelongsToProject(int $folderId, int $projectId): bool {
+    $stmt = getDB()->prepare("SELECT 1 FROM project_folders WHERE id = ? AND project_id = ?");
+    $stmt->execute([$folderId, $projectId]);
+    return (bool)$stmt->fetchColumn();
+}
+
+// Validar URL externa: solo http/https (bloquea javascript:, data:, etc.)
+function isSafeUrl(string $url): bool {
+    if (!filter_var($url, FILTER_VALIDATE_URL)) {
+        return false;
+    }
+    $scheme = strtolower((string)parse_url($url, PHP_URL_SCHEME));
+    return in_array($scheme, ['http', 'https'], true);
+}
+
+// Extensiones permitidas para adjuntos (lista blanca)
+const ALLOWED_ATTACHMENT_EXTENSIONS = [
+    'pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'odt', 'ods', 'odp',
+    'txt', 'csv', 'md', 'rtf',
+    'jpg', 'jpeg', 'png', 'gif', 'webp',
+    'zip', 'rar', '7z',
+    'mp3', 'mp4', 'mov', 'webm',
+    'fig', 'psd', 'ai', 'sketch',
+];
+
+// Tipos MIME reales permitidos para imágenes (comentarios / logo)
+const ALLOWED_IMAGE_MIMES = [
+    'image/jpeg' => 'jpg',
+    'image/png'  => 'png',
+    'image/gif'  => 'gif',
+    'image/webp' => 'webp',
+];
+
+// Detectar el tipo MIME real del archivo a partir de su contenido
+function detectMime(string $path): string {
+    $finfo = new finfo(FILEINFO_MIME_TYPE);
+    return $finfo->file($path) ?: 'application/octet-stream';
+}
+
+/**
+ * Valida y guarda un adjunto subido en uploads/.
+ * Devuelve ['ok' => true, 'stored_name', 'original_name', 'size', 'mime'] o ['ok' => false, 'error'].
+ */
+function storeUploadedAttachment(array $file, int $maxBytes = 20 * 1024 * 1024): array {
+    if (($file['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK || !is_uploaded_file($file['tmp_name'])) {
+        return ['ok' => false, 'error' => 'Error al recibir el archivo. Asegúrate de que no exceda el límite permitido.'];
+    }
+    if ($file['size'] > $maxBytes) {
+        return ['ok' => false, 'error' => 'El archivo no debe superar los ' . formatBytes($maxBytes) . '.'];
+    }
+
+    $origName = basename($file['name']);
+    $ext = strtolower(pathinfo($origName, PATHINFO_EXTENSION));
+    if (!in_array($ext, ALLOWED_ATTACHMENT_EXTENSIONS, true)) {
+        return ['ok' => false, 'error' => 'Tipo de archivo no permitido.'];
+    }
+
+    $mime = detectMime($file['tmp_name']);
+    // Bloquear contenido ejecutable o interpretable por el navegador aunque se disfrace con otra extensión
+    if (preg_match('#^(text/html|application/xhtml|image/svg|application/x-(php|httpd-php|sh|executable|msdownload))#', $mime)) {
+        return ['ok' => false, 'error' => 'El contenido del archivo no está permitido.'];
+    }
+
+    $uploadDir = dirname(__DIR__) . '/uploads/';
+    if (!is_dir($uploadDir)) {
+        mkdir($uploadDir, 0755, true);
+    }
+
+    $storedName = bin2hex(random_bytes(16)) . '.' . $ext;
+    if (!move_uploaded_file($file['tmp_name'], $uploadDir . $storedName)) {
+        return ['ok' => false, 'error' => 'No se pudo guardar el archivo en el servidor.'];
+    }
+
+    return ['ok' => true, 'stored_name' => $storedName, 'original_name' => $origName, 'size' => (int)$file['size'], 'mime' => $mime];
+}
+
 // Puede crear proyectos: admin, project_manager
 function canCreateProjects(?string $userRole = null): bool {
     $role = $userRole ?? currentUserRole();
@@ -238,6 +365,51 @@ function csrf_token(): string {
 
 function verify_csrf(?string $token): bool {
     return !empty($token) && !empty($_SESSION['csrf_token']) && hash_equals($_SESSION['csrf_token'], $token);
+}
+
+// Limitación de intentos de inicio de sesión (fuerza bruta)
+const LOGIN_MAX_ATTEMPTS = 5;
+const LOGIN_WINDOW_MINUTES = 15;
+
+function isLoginThrottled(string $email, string $ip): bool {
+    try {
+        $stmt = getDB()->prepare("
+            SELECT
+                SUM(email = ?) AS by_email,
+                SUM(ip_address = ?) AS by_ip
+            FROM login_attempts
+            WHERE attempted_at > (NOW() - INTERVAL " . LOGIN_WINDOW_MINUTES . " MINUTE)
+              AND (email = ? OR ip_address = ?)
+        ");
+        $stmt->execute([$email, $ip, $email, $ip]);
+        $row = $stmt->fetch();
+        // Por IP se permite más margen (varios usuarios tras la misma red)
+        return (int)$row['by_email'] >= LOGIN_MAX_ATTEMPTS || (int)$row['by_ip'] >= LOGIN_MAX_ATTEMPTS * 4;
+    } catch (Exception $e) {
+        error_log('login_attempts no disponible: ' . $e->getMessage());
+        return false;
+    }
+}
+
+function recordFailedLogin(string $email, string $ip): void {
+    try {
+        $db = getDB();
+        $db->prepare("INSERT INTO login_attempts (email, ip_address) VALUES (?, ?)")->execute([$email, $ip]);
+        // Limpieza ocasional de registros antiguos
+        if (random_int(1, 50) === 1) {
+            $db->exec("DELETE FROM login_attempts WHERE attempted_at < (NOW() - INTERVAL 1 DAY)");
+        }
+    } catch (Exception $e) {
+        error_log('login_attempts no disponible: ' . $e->getMessage());
+    }
+}
+
+function clearLoginAttempts(string $email): void {
+    try {
+        getDB()->prepare("DELETE FROM login_attempts WHERE email = ?")->execute([$email]);
+    } catch (Exception $e) {
+        error_log('login_attempts no disponible: ' . $e->getMessage());
+    }
 }
 
 // Formateo de fechas a formato amigable en español

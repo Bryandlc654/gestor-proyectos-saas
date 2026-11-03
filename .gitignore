@@ -1,0 +1,9 @@
+.env
+cookies.txt
+uploads/*
+!uploads/.htaccess
+storage/
+vendor/
+node_modules/
+.DS_Store
+Thumbs.db

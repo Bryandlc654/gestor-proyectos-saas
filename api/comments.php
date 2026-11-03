@@ -29,6 +29,13 @@ if (!canAccessProject($projectId, $user['id'], $user['role'])) {
     exit;
 }
 
+// La tarea indicada debe pertenecer al mismo proyecto
+if ($taskId && !taskBelongsToProject($taskId, $projectId)) {
+    http_response_code(400);
+    echo json_encode(['success' => false, 'message' => 'La tarea no pertenece a este proyecto']);
+    exit;
+}
+
 $action = $_POST['action'] ?? 'create';
 
 switch ($action) {
@@ -147,18 +154,13 @@ switch ($action) {
                 exit;
             }
 
-            $origName = basename($imgFile['name']);
-            $ext = strtolower(pathinfo($origName, PATHINFO_EXTENSION));
-
-            if (empty($ext) || !in_array($ext, ['jpg', 'jpeg', 'png', 'gif', 'webp'])) {
-                $ext = 'png';
-            }
-
-            $allowedExts = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
-            if (!in_array($ext, $allowedExts)) {
+            // La extensión se decide por el contenido real del archivo, no por el nombre enviado
+            $mime = is_uploaded_file($imgFile['tmp_name']) ? detectMime($imgFile['tmp_name']) : '';
+            if (!isset(ALLOWED_IMAGE_MIMES[$mime])) {
                 echo json_encode(['success' => false, 'message' => 'Formato de imagen no soportado (usa PNG, JPG, WEBP o GIF)']);
                 exit;
             }
+            $ext = ALLOWED_IMAGE_MIMES[$mime];
 
             $uploadDir = __DIR__ . '/../uploads/';
             if (!is_dir($uploadDir)) {

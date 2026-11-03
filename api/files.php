@@ -30,81 +30,58 @@ if (!canAccessProject($projectId, $user['id'], $user['role'])) {
 
 switch ($action) {
     case 'upload':
-        if (!isset($_FILES['attachment']) || $_FILES['attachment']['error'] !== UPLOAD_ERR_OK) {
-            echo json_encode(['success' => false, 'message' => 'Error al subir el archivo']);
-            exit;
-        }
-
-        $file = $_FILES['attachment'];
-        $maxSize = 20 * 1024 * 1024; // 20 MB
-
-        if ($file['size'] > $maxSize) {
-            echo json_encode(['success' => false, 'message' => 'El archivo supera el límite de 20 MB']);
-            exit;
-        }
-
-        $origName = basename($file['name']);
-        $ext = strtolower(pathinfo($origName, PATHINFO_EXTENSION));
-
-        $forbiddenExtensions = ['php', 'phtml', 'php3', 'php4', 'php5', 'phps', 'cgi', 'exe', 'bat', 'cmd', 'sh', 'pl', 'py'];
-        if (in_array($ext, $forbiddenExtensions)) {
-            echo json_encode(['success' => false, 'message' => 'No se permite subir archivos ejecutables o scripts']);
-            exit;
-        }
-
-        $storedName = bin2hex(random_bytes(16)) . '.' . ($ext ?: 'bin');
-        $uploadDir = __DIR__ . '/../uploads/';
-
-        if (!is_dir($uploadDir)) {
-            mkdir($uploadDir, 0755, true);
-        }
-
-        $destination = $uploadDir . $storedName;
-
         $folderId = !empty($_POST['folder_id']) ? (int)$_POST['folder_id'] : null;
         $taskId = !empty($_POST['task_id']) ? (int)$_POST['task_id'] : null;
         if ($user['role'] === 'cliente') {
             $taskId = null;
         }
 
-        if (move_uploaded_file($file['tmp_name'], $destination)) {
-            $stmt = $db->prepare("INSERT INTO project_files (project_id, user_id, folder_id, task_id, original_name, stored_name, file_size, file_type) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
-            $stmt->execute([
-                $projectId,
-                $user['id'],
-                $folderId,
-                $taskId,
-                $origName,
-                $storedName,
-                $file['size'],
-                $file['type'] ?: 'application/octet-stream'
-            ]);
-            $fileId = (int)$db->lastInsertId();
-
-            $taskTitle = null;
-            if ($taskId) {
-                $stT = $db->prepare("SELECT title FROM tasks WHERE id = ?");
-                $stT->execute([$taskId]);
-                $taskTitle = $stT->fetchColumn();
-            }
-
-            echo json_encode([
-                'success' => true,
-                'message' => 'Archivo subido con éxito',
-                'file' => [
-                    'id' => $fileId,
-                    'folder_id' => $folderId,
-                    'task_id' => $taskId,
-                    'task_title' => $taskTitle ? e($taskTitle) : null,
-                    'original_name' => e($origName),
-                    'file_size' => formatBytes($file['size']),
-                    'created_at' => formatDate(date('Y-m-d')),
-                    'download_url' => "actions/file-actions.php?action=download&id={$fileId}&csrf_token={$csrf}"
-                ]
-            ]);
-        } else {
-            echo json_encode(['success' => false, 'message' => 'No se pudo guardar el archivo en el servidor']);
+        if (($folderId && !folderBelongsToProject($folderId, $projectId)) || ($taskId && !taskBelongsToProject($taskId, $projectId))) {
+            http_response_code(400);
+            echo json_encode(['success' => false, 'message' => 'La carpeta o tarea no pertenece a este proyecto']);
+            exit;
         }
+
+        $upload = storeUploadedAttachment($_FILES['attachment'] ?? []);
+        if (!$upload['ok']) {
+            echo json_encode(['success' => false, 'message' => $upload['error']]);
+            exit;
+        }
+
+        $stmt = $db->prepare("INSERT INTO project_files (project_id, user_id, folder_id, task_id, original_name, stored_name, file_size, file_type) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
+        $stmt->execute([
+            $projectId,
+            $user['id'],
+            $folderId,
+            $taskId,
+            $upload['original_name'],
+            $upload['stored_name'],
+            $upload['size'],
+            $upload['mime']
+        ]);
+        $fileId = (int)$db->lastInsertId();
+
+        $taskTitle = null;
+        if ($taskId) {
+            $stT = $db->prepare("SELECT title FROM tasks WHERE id = ?");
+            $stT->execute([$taskId]);
+            $taskTitle = $stT->fetchColumn();
+        }
+
+        echo json_encode([
+            'success' => true,
+            'message' => 'Archivo subido con éxito',
+            'file' => [
+                'id' => $fileId,
+                'folder_id' => $folderId,
+                'task_id' => $taskId,
+                'task_title' => $taskTitle ? e($taskTitle) : null,
+                'original_name' => e($upload['original_name']),
+                'file_size' => formatBytes($upload['size']),
+                'created_at' => formatDate(date('Y-m-d')),
+                'download_url' => "actions/file-actions.php?action=download&id={$fileId}"
+            ]
+        ]);
         break;
 
     case 'delete':

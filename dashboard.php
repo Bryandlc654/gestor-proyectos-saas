@@ -555,10 +555,10 @@ document.addEventListener('DOMContentLoaded', function() {
         new Chart(ctxTasks, {
             type: 'doughnut',
             data: {
-                labels: <?= json_encode($chartTasksData['labels']) ?>,
+                labels: <?= json_encode($chartTasksData['labels'], JSON_SCRIPT_FLAGS) ?>,
                 datasets: [{
-                    data: <?= json_encode($chartTasksData['data']) ?>,
-                    backgroundColor: <?= json_encode($chartTasksData['colors']) ?>,
+                    data: <?= json_encode($chartTasksData['data'], JSON_SCRIPT_FLAGS) ?>,
+                    backgroundColor: <?= json_encode($chartTasksData['colors'], JSON_SCRIPT_FLAGS) ?>,
                     borderWidth: 2,
                     borderColor: '#ffffff',
                     hoverOffset: 4
@@ -584,10 +584,10 @@ document.addEventListener('DOMContentLoaded', function() {
         new Chart(ctxPrio, {
             type: 'bar',
             data: {
-                labels: <?= json_encode($chartPrioLabels) ?>,
+                labels: <?= json_encode($chartPrioLabels, JSON_SCRIPT_FLAGS) ?>,
                 datasets: [{
-                    data: <?= json_encode($chartPrioData) ?>,
-                    backgroundColor: <?= json_encode($chartPrioColors) ?>,
+                    data: <?= json_encode($chartPrioData, JSON_SCRIPT_FLAGS) ?>,
+                    backgroundColor: <?= json_encode($chartPrioColors, JSON_SCRIPT_FLAGS) ?>,
                     borderRadius: 8,
                     barThickness: 28
                 }]
@@ -619,9 +619,9 @@ document.addEventListener('DOMContentLoaded', function() {
         new Chart(ctxCat, {
             type: 'doughnut',
             data: {
-                labels: <?= json_encode($chartCatLabels) ?>,
+                labels: <?= json_encode($chartCatLabels, JSON_SCRIPT_FLAGS) ?>,
                 datasets: [{
-                    data: <?= json_encode($chartCatData) ?>,
+                    data: <?= json_encode($chartCatData, JSON_SCRIPT_FLAGS) ?>,
                     backgroundColor: ['#6366F1', '#3B82F6', '#10B981', '#EC4899', '#8B5CF6', '#F59E0B'],
                     borderWidth: 2,
                     borderColor: '#ffffff'
@@ -647,18 +647,18 @@ document.addEventListener('DOMContentLoaded', function() {
         new Chart(ctxProj, {
             type: 'bar',
             data: {
-                labels: <?= json_encode($chartProjLabels) ?>,
+                labels: <?= json_encode($chartProjLabels, JSON_SCRIPT_FLAGS) ?>,
                 datasets: [
                     {
                         label: 'Completadas',
-                        data: <?= json_encode($chartProjCompleted) ?>,
+                        data: <?= json_encode($chartProjCompleted, JSON_SCRIPT_FLAGS) ?>,
                         backgroundColor: '#10B981',
                         borderRadius: 6,
                         stack: 'tasksStack'
                     },
                     {
                         label: 'Pendientes',
-                        data: <?= json_encode($chartProjPending) ?>,
+                        data: <?= json_encode($chartProjPending, JSON_SCRIPT_FLAGS) ?>,
                         backgroundColor: '#CBD5E1',
                         borderRadius: 6,
                         stack: 'tasksStack'
