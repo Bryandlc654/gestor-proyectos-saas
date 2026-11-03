@@ -3,12 +3,12 @@
 // Parcial de project-view.php: usa las variables preparadas en esa página.
 ?>
 <!-- 1. MODAL DETALLE Y GESTIÓN DE TAREA (AMPLIADO, ESTRUCTURA INTEGRADA CON DETALLE PERMANENTE + PESTAÑAS DE ACTIVIDAD) -->
-<div id="task-detail-modal" class="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/60 backdrop-blur-xs hidden">
+<div id="task-detail-modal" class="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/40 backdrop-blur-xs hidden">
     <div class="bg-white rounded-3xl max-w-5xl w-full shadow-2xl border border-slate-100 overflow-hidden flex flex-col max-h-[92vh]">
         <!-- Cabecera del Detalle -->
         <div class="px-6 py-3.5 border-b border-slate-100 flex items-center justify-between bg-slate-50/70">
             <div class="flex items-center gap-2.5">
-                <span id="modal-task-priority" class="text-[10px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-md border"></span>
+                <span id="modal-task-priority" class="text-[11px] font-medium capitalize px-2.5 py-0.5 rounded-full"></span>
                 <span id="modal-task-status-badge" class="text-xs font-semibold px-2.5 py-0.5 rounded-full capitalize"></span>
             </div>
             <div class="flex items-center gap-2">
@@ -65,7 +65,7 @@
             <!-- Modo Edición Formulario (Desplegable) -->
             <form id="task-edit-form" onsubmit="submitTaskEditAjax(event)" class="hidden p-5 rounded-2xl bg-slate-50/90 border border-slate-200/90 space-y-4 shadow-2xs">
                 <div class="flex items-center justify-between pb-2 border-b border-slate-200">
-                    <span class="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
+                    <span class="text-xs font-medium text-slate-900 flex items-center gap-1.5">
                         <i data-lucide="edit-3" class="w-3.5 h-3.5 text-brand-600"></i>
                         <span>Editar Información Principal de la Tarea</span>
                     </span>
@@ -73,18 +73,18 @@
                 </div>
 
                 <div>
-                    <label class="block text-xs font-semibold text-slate-700 uppercase mb-1">Título de la Tarea *</label>
+                    <label class="block text-xs font-medium text-slate-700 mb-1">Título de la Tarea *</label>
                     <input type="text" id="edit-task-title-input" required class="w-full px-3.5 py-2 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-1 focus:ring-brand-500 bg-white shadow-2xs">
                 </div>
 
                 <div>
-                    <label class="block text-xs font-semibold text-slate-700 uppercase mb-1">Descripción</label>
+                    <label class="block text-xs font-medium text-slate-700 mb-1">Descripción</label>
                     <textarea id="edit-task-desc-input" rows="3" class="w-full px-3.5 py-2 rounded-xl border border-slate-200 text-xs sm:text-sm focus:outline-none focus:ring-1 focus:ring-brand-500 bg-white leading-relaxed shadow-2xs"></textarea>
                 </div>
 
                 <div class="grid grid-cols-1 sm:grid-cols-4 gap-3">
                     <div>
-                        <label class="block text-xs font-semibold text-slate-700 uppercase mb-1">Prioridad</label>
+                        <label class="block text-xs font-medium text-slate-700 mb-1">Prioridad</label>
                         <select id="edit-task-prio-input" class="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs focus:ring-brand-500 bg-white">
                             <option value="baja">Baja</option>
                             <option value="media">Media</option>
@@ -93,7 +93,7 @@
                         </select>
                     </div>
                     <div>
-                        <label class="block text-xs font-semibold text-slate-700 uppercase mb-1">Estado</label>
+                        <label class="block text-xs font-medium text-slate-700 mb-1">Estado</label>
                         <select id="edit-task-status-input" class="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs focus:ring-brand-500 bg-white">
                             <option value="pendiente">Por Hacer</option>
                             <option value="en_progreso">En Progreso</option>
@@ -101,11 +101,11 @@
                         </select>
                     </div>
                     <div>
-                        <label class="block text-xs font-semibold text-slate-700 uppercase mb-1">Fecha Límite</label>
+                        <label class="block text-xs font-medium text-slate-700 mb-1">Fecha Límite</label>
                         <input type="date" id="edit-task-date-input" class="w-full px-3 py-1.5 rounded-xl border border-slate-200 text-xs focus:ring-brand-500 bg-white">
                     </div>
                     <div>
-                        <label class="block text-xs font-semibold text-slate-700 uppercase mb-1">Asignar a</label>
+                        <label class="block text-xs font-medium text-slate-700 mb-1">Asignar a</label>
                         <select id="edit-task-assigned-input" class="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs focus:ring-brand-500 bg-white">
                             <option value="">Sin asignar</option>
                             <?php foreach ($collaborators as $col): ?>
@@ -124,9 +124,9 @@
             <!-- SECCIÓN PRINCIPAL: Título, Descripción y Atributos (Siempre Visible) -->
             <div id="task-info-display" class="space-y-4">
                 <div>
-                    <h2 id="modal-task-title" class="font-display font-bold text-xl sm:text-2xl text-slate-900 leading-tight"></h2>
+                    <h2 id="modal-task-title" class="font-display font-semibold text-xl sm:text-2xl text-slate-900 leading-tight"></h2>
                     <div class="mt-3 p-4 rounded-2xl bg-slate-50/70 border border-slate-100">
-                        <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-1">Descripción de la Tarea</span>
+                        <span class="text-[11px] font-medium text-slate-500 block mb-1">Descripción de la Tarea</span>
                         <p id="modal-task-description" class="text-xs sm:text-sm text-slate-600 leading-relaxed whitespace-pre-line"></p>
                     </div>
                 </div>
@@ -138,7 +138,7 @@
                             <i data-lucide="user" class="w-4 h-4"></i>
                         </div>
                         <div class="min-w-0">
-                            <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 block leading-tight">Responsable</span>
+                            <span class="text-[11px] font-medium text-slate-500 block leading-tight">Responsable</span>
                             <span id="modal-task-assigned" class="text-xs font-semibold text-slate-800 truncate block mt-0.5"></span>
                         </div>
                     </div>
@@ -148,7 +148,7 @@
                             <i data-lucide="calendar" class="w-4 h-4"></i>
                         </div>
                         <div class="min-w-0">
-                            <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 block leading-tight">Fecha Límite</span>
+                            <span class="text-[11px] font-medium text-slate-500 block leading-tight">Fecha Límite</span>
                             <span id="modal-task-duedate" class="text-xs font-semibold text-slate-800 truncate block mt-0.5"></span>
                         </div>
                     </div>
@@ -158,7 +158,7 @@
                             <i data-lucide="activity" class="w-4 h-4"></i>
                         </div>
                         <div class="min-w-0">
-                            <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 block leading-tight">Estado Actual</span>
+                            <span class="text-[11px] font-medium text-slate-500 block leading-tight">Estado Actual</span>
                             <span id="modal-task-status-text" class="text-xs font-semibold text-slate-800 capitalize truncate block mt-0.5"></span>
                         </div>
                     </div>
@@ -170,7 +170,7 @@
             <div class="pt-3 border-t border-slate-100 space-y-4">
                 <!-- Pestañas de la Tarea -->
                 <div class="flex items-center gap-6 border-b border-slate-100 text-xs font-medium">
-                    <button type="button" onclick="switchTaskDetailTab('comments')" id="task-tab-btn-comments" class="task-detail-tab-btn pb-2.5 font-bold text-brand-600 border-b-2 border-brand-600 flex items-center gap-1.5 transition">
+                    <button type="button" onclick="switchTaskDetailTab('comments')" id="task-tab-btn-comments" class="task-detail-tab-btn pb-2.5 font-medium text-slate-900 border-b-2 border-slate-900 flex items-center gap-1.5 transition">
                         <i data-lucide="message-square" class="w-3.5 h-3.5"></i>
                         <span>Comentarios</span>
                         <span id="modal-task-comments-badge-count" class="bg-brand-50 text-brand-700 px-1.5 py-0.2 rounded-full text-[10px] font-bold">0</span>
@@ -283,11 +283,11 @@
                     <!-- Contenedores limpios y organizados para Archivos y Enlaces -->
                     <div class="space-y-3 pt-1">
                         <div>
-                            <div class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-1.5">Archivos</div>
+                            <div class="text-xs font-medium text-slate-500 mb-1.5">Archivos</div>
                             <div id="modal-task-files-list" class="space-y-1.5"></div>
                         </div>
                         <div>
-                            <div class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-1.5">Enlaces</div>
+                            <div class="text-xs font-medium text-slate-500 mb-1.5">Enlaces</div>
                             <div id="modal-task-links-list" class="space-y-1.5"></div>
                         </div>
                     </div>

@@ -6,7 +6,7 @@
         <section id="tab-tickets" class="tab-content hidden space-y-5">
             <div class="flex items-center justify-between">
                 <div class="flex items-center gap-2">
-                    <h2 class="font-display font-bold text-base text-slate-900">Tickets</h2>
+                    <h2 class="font-display font-semibold text-base text-slate-900">Tickets</h2>
                     <span class="text-xs text-slate-400"><?= count($tickets) ?> registrados</span>
                 </div>
                 <button onclick="openModal('create-ticket-modal')" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-brand-600 hover:bg-brand-700 text-white font-semibold text-xs shadow-xs transition">
@@ -33,7 +33,7 @@
                             <div class="space-y-1.5 flex-1 min-w-0">
                                 <div class="flex flex-wrap items-center gap-2">
                                     <span class="text-xs font-mono font-semibold text-slate-400">#TK-<?= $ticket['id'] ?></span>
-                                    <h3 class="font-display font-bold text-slate-900 text-sm sm:text-base"><?= e($ticket['title']) ?></h3>
+                                    <h3 class="font-display font-semibold text-slate-900 text-sm sm:text-base"><?= e($ticket['title']) ?></h3>
                                     <?php
                                         $ticketPrio = match($ticket['priority']) {
                                             'critica' => 'bg-rose-50 text-rose-700 border-rose-200/60',
@@ -42,7 +42,7 @@
                                             default   => 'bg-slate-50 text-slate-600 border-slate-200/60'
                                         };
                                     ?>
-                                    <span class="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md border <?= $ticketPrio ?>">
+                                    <span class="text-[11px] font-medium capitalize px-2 py-0.5 rounded-full <?= $ticketPrio ?>">
                                         <?= e($ticket['priority']) ?>
                                     </span>
                                 </div>

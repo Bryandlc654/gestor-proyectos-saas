@@ -258,13 +258,13 @@ require_once __DIR__ . '/includes/sidebar.php';
 ?>
 
 <!-- Contenedor Principal del Proyecto -->
-<main class="flex-1 flex flex-col min-w-0 bg-[#F9FAFB] overflow-y-auto">
+<main class="flex-1 flex flex-col min-w-0 bg-slate-50 overflow-y-auto">
     <!-- Header del Proyecto (Minimalista y Pulido) -->
     <header class="bg-white border-b border-slate-200/70 px-4 sm:px-8 py-5 sticky top-0 z-10">
         <div class="max-w-7xl mx-auto flex flex-col md:flex-row md:items-center justify-between gap-4">
             
             <div class="flex items-start gap-3.5">
-                <button onclick="toggleSidebar()" class="p-2 -ml-2 rounded-xl text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition" title="Alternar menú lateral">
+                <button onclick="toggleSidebar()" class="p-1.5 -ml-1.5 rounded-md text-slate-400 hover:text-slate-900 hover:bg-slate-100 transition" title="Alternar menú lateral">
                     <i data-lucide="menu" class="w-5 h-5"></i>
                 </button>
 
@@ -274,7 +274,7 @@ require_once __DIR__ . '/includes/sidebar.php';
 
                 <div>
                     <div class="flex flex-wrap items-center gap-2">
-                        <h1 class="font-display font-bold text-lg sm:text-xl text-slate-900 tracking-tight">
+                        <h1 class="font-semibold text-base sm:text-lg text-slate-900 tracking-tight">
                             <?= e($project['name']) ?>
                         </h1>
                         <span class="text-[11px] font-semibold px-2 py-0.5 rounded-full capitalize <?= $project['status'] === 'activo' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200/50' : 'bg-slate-100 text-slate-600' ?>">
@@ -298,7 +298,7 @@ require_once __DIR__ . '/includes/sidebar.php';
                 <?php if (isAdmin()): ?>
                     <!-- Resumen de Costo y Cobro (Solo Admin) -->
                     <div class="text-right hidden sm:block border-r border-slate-200/70 pr-4">
-                        <div class="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Costo Proyecto</div>
+                        <div class="text-[11px] font-medium text-slate-500">Costo Proyecto</div>
                         <div class="text-xs font-bold text-slate-900 mt-0.5">
                             <?= e($projectCurrency) ?> $<?= number_format($projectBudget, 2) ?>
                         </div>

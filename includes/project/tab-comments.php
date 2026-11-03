@@ -6,7 +6,7 @@
         <section id="tab-comments" class="tab-content hidden space-y-5">
             <div class="flex items-center justify-between">
                 <div class="flex items-center gap-2">
-                    <h2 class="font-display font-bold text-base text-slate-900">Notas & Acuerdos</h2>
+                    <h2 class="font-display font-semibold text-base text-slate-900">Notas & Acuerdos</h2>
                     <span class="text-xs text-slate-400"><?= count($comments) ?> hilos</span>
                 </div>
             </div>

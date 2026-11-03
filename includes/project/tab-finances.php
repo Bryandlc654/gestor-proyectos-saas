@@ -8,7 +8,7 @@
             <!-- Encabezado con Botones de Acción -->
             <div class="flex items-center justify-between gap-4">
                 <div class="flex items-center gap-2">
-                    <h2 class="font-display font-bold text-base text-slate-900">Finanzas</h2>
+                    <h2 class="font-display font-semibold text-base text-slate-900">Finanzas</h2>
                     <span class="text-xs font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 font-mono"><?= e($projectCurrency) ?></span>
                 </div>
 
@@ -30,32 +30,32 @@
             <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
                 <!-- 1. Presupuesto / Costo Total -->
                 <div class="bg-white rounded-2xl border border-slate-200/80 p-4 shadow-2xs space-y-1">
-                    <span class="text-[11px] font-semibold uppercase tracking-wider text-slate-400 block">Costo Total</span>
-                    <div class="text-lg sm:text-xl font-display font-bold text-slate-900" id="card-fin-budget">
+                    <span class="text-xs font-medium text-slate-500 block">Costo Total</span>
+                    <div class="text-lg sm:text-xl font-display font-semibold text-slate-900" id="card-fin-budget">
                         <?= e($projectCurrency) ?> $<?= number_format($projectBudget, 2) ?>
                     </div>
                 </div>
 
                 <!-- 2. Total Facturado -->
                 <div class="bg-white rounded-2xl border border-slate-200/80 p-4 shadow-2xs space-y-1">
-                    <span class="text-[11px] font-semibold uppercase tracking-wider text-slate-400 block">Facturado</span>
-                    <div class="text-lg sm:text-xl font-display font-bold text-blue-700" id="card-fin-invoiced">
+                    <span class="text-xs font-medium text-slate-500 block">Facturado</span>
+                    <div class="text-lg sm:text-xl font-semibold tracking-tight text-slate-900" id="card-fin-invoiced">
                         <?= e($projectCurrency) ?> $<?= number_format($totalInvoiced, 2) ?>
                     </div>
                 </div>
 
                 <!-- 3. Cobrado / Pagado -->
                 <div class="bg-white rounded-2xl border border-slate-200/80 p-4 shadow-2xs space-y-1">
-                    <span class="text-[11px] font-semibold uppercase tracking-wider text-slate-400 block">Cobrado</span>
-                    <div class="text-lg sm:text-xl font-display font-bold text-emerald-700" id="card-fin-paid">
+                    <span class="text-xs font-medium text-slate-500 block">Cobrado</span>
+                    <div class="text-lg sm:text-xl font-semibold tracking-tight text-slate-900" id="card-fin-paid">
                         <?= e($projectCurrency) ?> $<?= number_format($totalPaid, 2) ?>
                     </div>
                 </div>
 
                 <!-- 4. Facturas Por Cobrar (Pendiente) -->
                 <div class="bg-white rounded-2xl border border-slate-200/80 p-4 shadow-2xs space-y-1">
-                    <span class="text-[11px] font-semibold uppercase tracking-wider text-slate-400 block">Por Cobrar</span>
-                    <div class="text-lg sm:text-xl font-display font-bold <?= $totalPending > 0 ? 'text-amber-600' : 'text-slate-900' ?>" id="card-fin-pending">
+                    <span class="text-xs font-medium text-slate-500 block">Por Cobrar</span>
+                    <div class="text-lg sm:text-xl font-semibold tracking-tight text-slate-900" id="card-fin-pending">
                         <?= e($projectCurrency) ?> $<?= number_format($totalPending, 2) ?>
                     </div>
                 </div>
@@ -64,7 +64,7 @@
             <!-- Tabla de Facturas y Cobros -->
             <div class="bg-white rounded-2xl border border-slate-200/80 shadow-2xs overflow-hidden">
                 <div class="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
-                    <h3 class="font-display font-bold text-xs sm:text-sm text-slate-900">Historial de Cobros</h3>
+                    <h3 class="font-display font-semibold text-xs sm:text-sm text-slate-900">Historial de Cobros</h3>
                     <span class="text-xs text-slate-400"><?= count($invoices) ?> facturas</span>
                 </div>
 
@@ -84,7 +84,7 @@
                 <div id="invoices-table-container" class="overflow-x-auto <?= empty($invoices) ? 'hidden' : '' ?>">
                     <table class="w-full text-left text-xs">
                         <thead>
-                            <tr class="text-slate-400 font-semibold border-b border-slate-100 uppercase text-[10px] bg-slate-50/50">
+                            <tr class="text-slate-500 font-medium border-b border-slate-100 text-[11px] bg-slate-50/50">
                                 <th class="py-3 px-4">N° Factura</th>
                                 <th class="py-3 px-4">Concepto / Hito</th>
                                 <th class="py-3 px-4">Importe</th>
@@ -123,7 +123,7 @@
                                         <?php endif; ?>
                                     </td>
                                     <td class="py-3 px-4">
-                                        <span id="inv-badge-<?= $inv['id'] ?>" class="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider border <?= $statusBadge ?>">
+                                        <span id="inv-badge-<?= $inv['id'] ?>" class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium capitalize <?= $statusBadge ?>">
                                             <?= e($inv['status']) ?>
                                         </span>
                                     </td>

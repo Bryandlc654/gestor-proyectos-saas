@@ -77,7 +77,7 @@ function switchTaskDetailTab(subTabId) {
     const btn = document.getElementById('task-tab-btn-' + subTabId);
     if (target && btn) {
         target.classList.remove('hidden');
-        btn.className = "task-detail-tab-btn pb-2.5 font-bold text-brand-600 border-b-2 border-brand-600 flex items-center gap-1.5 transition";
+        btn.className = "task-detail-tab-btn pb-2.5 font-medium text-slate-900 border-b-2 border-slate-900 flex items-center gap-1.5 transition";
     }
     lucide.createIcons();
 }
@@ -307,7 +307,7 @@ async function openTaskDetailModal(taskId) {
             const prioBadge = document.getElementById('modal-task-priority');
             if (prioBadge) {
                 prioBadge.innerText = t.priority;
-                prioBadge.className = "text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md border " + (
+                prioBadge.className = "text-[11px] font-medium capitalize px-2 py-0.5 rounded-full " + (
                     t.priority === 'urgente' ? 'bg-rose-50 text-rose-700 border-rose-200/60' :
                     (t.priority === 'alta' ? 'bg-amber-50 text-amber-700 border-amber-200/60' : 'bg-indigo-50 text-indigo-700 border-indigo-200/60')
                 );
@@ -2084,7 +2084,7 @@ async function updateInvoiceStatusAjax(invoiceId, newStatus) {
                     'pendiente': 'bg-amber-50 text-amber-700 border-amber-200/60',
                     'anulada': 'bg-rose-50 text-rose-700 border-rose-200/60'
                 };
-                badge.className = `inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider border ${badgeClasses[newStatus] || 'bg-slate-50 text-slate-700 border-slate-200/60'}`;
+                badge.className = `inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium capitalize ${badgeClasses[newStatus] || 'bg-slate-50 text-slate-700 border-slate-200/60'}`;
             }
             setTimeout(() => location.reload(), 600);
         } else {

@@ -170,15 +170,15 @@ require_once __DIR__ . '/includes/sidebar.php';
 ?>
 
 <!-- Contenedor Principal de Tareas -->
-<main class="flex-1 flex flex-col min-w-0 bg-[#F8FAFC] overflow-y-auto">
+<main class="flex-1 flex flex-col min-w-0 bg-slate-50 overflow-y-auto">
     <!-- Barra Superior -->
-    <header class="min-h-[4.5rem] sm:min-h-[5rem] py-4 sm:py-5 bg-white border-b border-slate-200/80 px-6 sm:px-10 flex items-center justify-between sticky top-0 z-10">
+    <header class="h-16 flex-shrink-0 bg-white/90 backdrop-blur border-b border-slate-200/70 px-4 sm:px-8 flex items-center justify-between gap-3 sticky top-0 z-10">
         <div class="flex items-center gap-3">
-            <button onclick="toggleSidebar()" class="p-2 -ml-2 rounded-xl text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition" title="Alternar menú lateral">
+            <button onclick="toggleSidebar()" class="p-1.5 -ml-1.5 rounded-md text-slate-400 hover:text-slate-900 hover:bg-slate-100 transition" title="Alternar menú lateral">
                 <i data-lucide="menu" class="w-5 h-5"></i>
             </button>
             <div>
-                <h1 class="font-display font-bold text-lg sm:text-xl text-slate-900 tracking-tight">Tablero Global de Tareas</h1>
+                <h1 class="font-semibold text-base sm:text-lg text-slate-900 tracking-tight">Tareas</h1>
             </div>
         </div>
 
@@ -338,9 +338,9 @@ require_once __DIR__ . '/includes/sidebar.php';
                         <div class="flex items-center justify-between px-1">
                             <div class="flex items-center gap-2">
                                 <span class="w-2.5 h-2.5 rounded-full bg-slate-400"></span>
-                                <h3 class="font-display font-bold text-slate-800 text-sm">Por Hacer</h3>
+                                <h3 class="font-display font-semibold text-slate-800 text-sm">Por Hacer</h3>
                             </div>
-                            <span class="px-2 py-0.5 rounded-full bg-slate-200/70 text-[11px] font-bold text-slate-600">
+                            <span class="text-xs font-medium text-slate-400 tabular-nums">
                                 <?= $statusTotals['pendiente'] ?>
                             </span>
                         </div>
@@ -363,9 +363,9 @@ require_once __DIR__ . '/includes/sidebar.php';
                         <div class="flex items-center justify-between px-1">
                             <div class="flex items-center gap-2">
                                 <span class="w-2.5 h-2.5 rounded-full bg-amber-500"></span>
-                                <h3 class="font-display font-bold text-slate-800 text-sm">En Progreso</h3>
+                                <h3 class="font-display font-semibold text-slate-800 text-sm">En Progreso</h3>
                             </div>
-                            <span class="px-2 py-0.5 rounded-full bg-amber-100 text-[11px] font-bold text-amber-700">
+                            <span class="text-xs font-medium text-slate-400 tabular-nums">
                                 <?= $statusTotals['en_progreso'] ?>
                             </span>
                         </div>
@@ -388,9 +388,9 @@ require_once __DIR__ . '/includes/sidebar.php';
                         <div class="flex items-center justify-between px-1">
                             <div class="flex items-center gap-2">
                                 <span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
-                                <h3 class="font-display font-bold text-slate-800 text-sm">Completadas</h3>
+                                <h3 class="font-display font-semibold text-slate-800 text-sm">Completadas</h3>
                             </div>
-                            <span class="px-2 py-0.5 rounded-full bg-emerald-100 text-[11px] font-bold text-emerald-700">
+                            <span class="text-xs font-medium text-slate-400 tabular-nums">
                                 <?= $statusTotals['completada'] ?>
                             </span>
                         </div>
@@ -416,7 +416,7 @@ require_once __DIR__ . '/includes/sidebar.php';
                 <div class="bg-white rounded-2xl border border-slate-200/80 shadow-2xs overflow-hidden">
                     <div class="overflow-x-auto">
                         <table class="w-full text-left text-xs text-slate-600">
-                            <thead class="bg-slate-50/70 border-b border-slate-100 uppercase text-[10px] tracking-wider text-slate-400">
+                            <thead class="bg-slate-50/70 border-b border-slate-100 text-[11px] text-slate-500 font-medium">
                                 <tr>
                                     <th class="py-3 px-4">Tarea</th>
                                     <th class="py-3 px-4">Proyecto</th>
@@ -456,7 +456,7 @@ require_once __DIR__ . '/includes/sidebar.php';
                                             <?= e($task['assigned_to'] ?: 'Sin asignar') ?>
                                         </td>
                                         <td class="py-3 px-4 whitespace-nowrap">
-                                            <span class="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md border <?= $prioClass ?>">
+                                            <span class="text-[11px] font-medium capitalize px-2 py-0.5 rounded-full <?= $prioClass ?>">
                                                 <?= e($task['priority']) ?>
                                             </span>
                                         </td>
@@ -505,14 +505,14 @@ require_once __DIR__ . '/includes/sidebar.php';
 </main>
 
 <!-- Modal: Crear Tarea Global -->
-<div id="create-global-task-modal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs hidden transition-opacity">
+<div id="create-global-task-modal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs hidden transition-opacity">
     <div class="bg-white rounded-2xl max-w-lg w-full shadow-2xl border border-slate-100 overflow-hidden transform transition-all">
         <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
             <div class="flex items-center gap-2.5">
                 <div class="w-8 h-8 rounded-lg bg-brand-50 text-brand-600 flex items-center justify-center">
                     <i data-lucide="check-square" class="w-4 h-4"></i>
                 </div>
-                <h3 class="font-display font-bold text-slate-800 text-base">Crear Nueva Tarea</h3>
+                <h3 class="font-display font-semibold text-slate-800 text-base">Crear Nueva Tarea</h3>
             </div>
             <button type="button" onclick="closeModal('create-global-task-modal')" class="text-slate-400 hover:text-slate-600 p-1 rounded-lg">
                 <i data-lucide="x" class="w-5 h-5"></i>
@@ -521,7 +521,7 @@ require_once __DIR__ . '/includes/sidebar.php';
 
         <form id="create-global-task-form" onsubmit="handleCreateGlobalTask(event)" class="p-6 space-y-4">
             <div>
-                <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">Proyecto Destino *</label>
+                <label class="block text-xs font-medium text-slate-700 mb-1.5">Proyecto Destino *</label>
                 <select id="global-task-project" required class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs sm:text-sm focus:ring-1 focus:ring-brand-500 bg-white">
                     <option value="">Seleccionar proyecto...</option>
                     <?php foreach ($projectsList as $p): ?>
@@ -533,18 +533,18 @@ require_once __DIR__ . '/includes/sidebar.php';
             </div>
 
             <div>
-                <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">Título de la Tarea *</label>
+                <label class="block text-xs font-medium text-slate-700 mb-1.5">Título de la Tarea *</label>
                 <input type="text" id="global-task-title" required placeholder="Ej: Implementar pasarela de pagos" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs sm:text-sm focus:ring-1 focus:ring-brand-500">
             </div>
 
             <div>
-                <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">Descripción Detallada</label>
+                <label class="block text-xs font-medium text-slate-700 mb-1.5">Descripción Detallada</label>
                 <textarea id="global-task-desc" rows="3" placeholder="Requerimientos, especificaciones y notas..." class="w-full px-3.5 py-2 rounded-xl border border-slate-200 text-xs sm:text-sm focus:ring-1 focus:ring-brand-500"></textarea>
             </div>
 
             <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
-                    <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">Prioridad</label>
+                    <label class="block text-xs font-medium text-slate-700 mb-1.5">Prioridad</label>
                     <select id="global-task-prio" class="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs focus:ring-brand-500 bg-white">
                         <option value="baja">Baja</option>
                         <option value="media" selected>Media</option>
@@ -553,11 +553,11 @@ require_once __DIR__ . '/includes/sidebar.php';
                     </select>
                 </div>
                 <div>
-                    <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">Vencimiento</label>
+                    <label class="block text-xs font-medium text-slate-700 mb-1.5">Vencimiento</label>
                     <input type="date" id="global-task-due" class="w-full px-3 py-1.5 rounded-xl border border-slate-200 text-xs focus:ring-brand-500 bg-white">
                 </div>
                 <div>
-                    <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">Responsable</label>
+                    <label class="block text-xs font-medium text-slate-700 mb-1.5">Responsable</label>
                     <select id="global-task-assigned" class="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs focus:ring-brand-500 bg-white">
                         <option value="">Sin asignar</option>
                         <?php foreach ($collaborators as $col): ?>
