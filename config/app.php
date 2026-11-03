@@ -3,11 +3,14 @@
 // La lógica vive en las clases de src/ (namespace App\); estas funciones globales las envuelven
 // para que las páginas existentes sigan funcionando sin cambios.
 
+use App\Repository\AgencyRepository;
+use App\Repository\InvitationRepository;
 use App\Repository\ProjectRepository;
 use App\Security\Csrf;
 use App\Security\LoginThrottle;
 use App\Security\Permissions;
 use App\Security\UrlValidator;
+use App\Service\AccountService;
 use App\Support\Format;
 use App\Support\Paginator;
 use App\Upload\AttachmentStorage;
@@ -79,25 +82,62 @@ function currentUser(): ?array {
         return null;
     }
 
-    // Auto-recuperar rol si no estuviera en sesión
-    if (empty($_SESSION['user_role'])) {
+    // Auto-recuperar rol y agencia si no estuvieran en sesión (p. ej. sesiones anteriores a la multi-agencia)
+    if (empty($_SESSION['user_role']) || empty($_SESSION['agency_id'])) {
         try {
-            $db = getDB();
-            $stmt = $db->prepare("SELECT role FROM users WHERE id = ?");
+            $stmt = getDB()->prepare("SELECT role, agency_id FROM users WHERE id = ?");
             $stmt->execute([$_SESSION['user_id']]);
-            $r = $stmt->fetchColumn();
-            $_SESSION['user_role'] = $r ?: 'colaborador';
+            $row = $stmt->fetch() ?: [];
+            $_SESSION['user_role'] = $row['role'] ?? 'colaborador';
+            $_SESSION['agency_id'] = (int)($row['agency_id'] ?? 0);
         } catch (Exception $e) {
             $_SESSION['user_role'] = 'colaborador';
+            $_SESSION['agency_id'] = 0;
         }
     }
 
     return [
-        'id'    => $_SESSION['user_id'],
-        'name'  => $_SESSION['user_name'] ?? 'Usuario',
-        'email' => $_SESSION['user_email'] ?? '',
-        'role'  => $_SESSION['user_role'] ?? 'colaborador',
+        'id'        => $_SESSION['user_id'],
+        'name'      => $_SESSION['user_name'] ?? 'Usuario',
+        'email'     => $_SESSION['user_email'] ?? '',
+        'role'      => $_SESSION['user_role'] ?? 'colaborador',
+        'agency_id' => (int)($_SESSION['agency_id'] ?? 0),
     ];
+}
+
+// Guardar en sesión los datos del usuario que acaba de autenticarse (login, registro, invitación)
+function startUserSession(array $user): void {
+    session_regenerate_id(true);
+    $_SESSION['user_id'] = (int)$user['id'];
+    $_SESSION['user_name'] = $user['name'];
+    $_SESSION['user_email'] = $user['email'];
+    $_SESSION['user_role'] = $user['role'] ?? 'colaborador';
+    $_SESSION['agency_id'] = (int)$user['agency_id'];
+}
+
+function currentAgencyId(): int {
+    return (int)(currentUser()['agency_id'] ?? 0);
+}
+
+function agencyRepository(): AgencyRepository {
+    static $repo = null;
+    return $repo ??= new AgencyRepository(getDB());
+}
+
+function invitationRepository(): InvitationRepository {
+    static $repo = null;
+    return $repo ??= new InvitationRepository(getDB());
+}
+
+function accountService(): AccountService {
+    static $service = null;
+    return $service ??= new AccountService(getDB(), agencyRepository(), invitationRepository());
+}
+
+// Agencia del usuario actual (nombre y logo para la interfaz)
+function currentAgency(): array {
+    static $agency = null;
+    return $agency ??= (agencyRepository()->find(currentAgencyId()) ?? ['id' => 0, 'name' => 'FlowTasks', 'logo' => null]);
 }
 
 // Helpers de Roles y Permisos (admin, project_manager, colaborador, cliente)
@@ -128,6 +168,12 @@ function isCliente(): bool {
 function projectRepository(): ProjectRepository {
     static $repo = null;
     return $repo ??= new ProjectRepository(getDB());
+}
+
+// Subconsulta de proyectos visibles para el usuario actual: [sql, parámetros] para `IN (...)`
+function visibleProjectsSql(): array {
+    $user = currentUser();
+    return projectRepository()->visibleProjectsSql((int)$user['id'], $user['role']);
 }
 
 // Comprobar si el usuario tiene permiso para acceder/ver un proyecto
@@ -310,36 +356,3 @@ function formatBytes(int $bytes, int $precision = 1): string {
     return Format::bytes($bytes, $precision);
 }
 
-// Configuración Global y Logo de la Aplicación
-function getAppSetting(string $key, string $default = ''): string {
-    static $settingsCache = null;
-    if ($settingsCache === null) {
-        $settingsCache = [];
-        try {
-            $db = getDB();
-            $stmt = $db->query("SELECT setting_key, setting_value FROM app_settings");
-            if ($stmt) {
-                while ($row = $stmt->fetch()) {
-                    $settingsCache[$row['setting_key']] = $row['setting_value'];
-                }
-            }
-        } catch (Exception $e) {
-            // Ignorar error si la tabla aún no existe
-        }
-    }
-    return $settingsCache[$key] ?? $default;
-}
-
-function setAppSetting(string $key, ?string $value): bool {
-    try {
-        $db = getDB();
-        $stmt = $db->prepare("
-            INSERT INTO app_settings (setting_key, setting_value) 
-            VALUES (?, ?) 
-            ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)
-        ");
-        return $stmt->execute([$key, $value]);
-    } catch (Exception $e) {
-        return false;
-    }
-}

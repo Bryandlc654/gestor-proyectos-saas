@@ -6,7 +6,7 @@ requireLogin();
 $user = currentUser();
 $userRole = currentUserRole();
 
-// Solo el Administrador puede cambiar la configuración global del sistema
+// Solo el administrador de la agencia puede cambiar su marca
 if (!isAdmin()) {
     setFlash('error', 'Solo los administradores pueden acceder al módulo de configuración.');
     header('Location: dashboard.php');
@@ -16,8 +16,10 @@ if (!isAdmin()) {
 define('PAGE_TITLE', 'Configuración del Sistema');
 $db = getDB();
 
-$currentLogo = getAppSetting('app_logo', '');
-$appName = getAppSetting('app_name', 'FlowTasks');
+$agencyId = currentAgencyId();
+$agency = currentAgency();
+$currentLogo = $agency['logo'] ?? '';
+$appName = $agency['name'];
 
 // Procesar cambios en la configuración
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -33,7 +35,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($action === 'save_branding') {
         $newAppName = trim($_POST['app_name'] ?? '');
         if (!empty($newAppName)) {
-            setAppSetting('app_name', $newAppName);
+            agencyRepository()->rename($agencyId, mb_substr($newAppName, 0, 150));
         }
 
         // Subida de nuevo logo
@@ -48,7 +50,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     mkdir($uploadDir, 0755, true);
                 }
 
-                $filename = 'app_logo_' . time() . '.' . $extension;
+                $filename = 'agency_' . $agencyId . '_' . time() . '.' . $extension;
                 $targetPath = $uploadDir . $filename;
 
                 if (move_uploaded_file($_FILES['app_logo']['tmp_name'], $targetPath)) {
@@ -57,7 +59,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         @unlink(__DIR__ . '/' . $currentLogo);
                     }
                     $dbLogoPath = 'uploads/logo/' . $filename;
-                    setAppSetting('app_logo', $dbLogoPath);
+                    agencyRepository()->setLogo($agencyId, $dbLogoPath);
                     $currentLogo = $dbLogoPath;
                     setFlash('success', '¡Logo y nombre de la aplicación actualizados exitosamente!');
                 } else {
@@ -78,7 +80,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (!empty($currentLogo) && file_exists(__DIR__ . '/' . $currentLogo)) {
             @unlink(__DIR__ . '/' . $currentLogo);
         }
-        setAppSetting('app_logo', '');
+        agencyRepository()->setLogo($agencyId, null);
         setFlash('success', 'Logo restablecido al diseño predeterminado.');
         header('Location: settings.php');
         exit;
@@ -113,8 +115,8 @@ require_once __DIR__ . '/includes/sidebar.php';
                         <i data-lucide="image" class="w-5 h-5"></i>
                     </div>
                     <div>
-                        <h3 class="font-display font-semibold text-slate-900 text-base">Identidad de Marca & Logo</h3>
-                        <p class="text-xs text-slate-400">Personaliza el logo y nombre que se mostrarán en la barra lateral y en la pantalla de inicio de sesión</p>
+                        <h3 class="font-display font-semibold text-slate-900 text-base">Marca de la agencia</h3>
+                        <p class="text-xs text-slate-400">Nombre y logo que ven tu equipo y tus clientes dentro de la plataforma</p>
                     </div>
                 </div>
             </div>
@@ -159,7 +161,7 @@ require_once __DIR__ . '/includes/sidebar.php';
 
                 <!-- Nombre de la Aplicación -->
                 <div>
-                    <label class="block text-xs font-medium text-slate-700 mb-1.5">Nombre del Software / Empresa *</label>
+                    <label class="block text-xs font-medium text-slate-700 mb-1.5">Nombre de la agencia *</label>
                     <input type="text" name="app_name" value="<?= e($appName) ?>" required placeholder="Ej: FlowTasks" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:ring-1 focus:ring-brand-500 bg-white">
                 </div>
 
@@ -168,7 +170,7 @@ require_once __DIR__ . '/includes/sidebar.php';
                     <label class="block text-xs font-medium text-slate-700 mb-1.5">Subir Nuevo Logo</label>
                     <div class="border-2 border-dashed border-slate-200 hover:border-brand-400 rounded-2xl p-6 text-center bg-slate-50/40 hover:bg-slate-50 transition cursor-pointer relative">
                         <input type="file" name="app_logo" id="logo-file-input" accept="image/png, image/jpeg, image/webp, image/gif" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer" onchange="previewLogo(this)">
-                        
+
                         <div id="dropzone-default">
                             <div class="w-10 h-10 rounded-xl bg-brand-50 text-brand-600 flex items-center justify-center mx-auto mb-2">
                                 <i data-lucide="upload-cloud" class="w-5 h-5"></i>

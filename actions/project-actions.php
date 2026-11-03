@@ -41,8 +41,8 @@ switch ($action) {
             exit;
         }
 
-        $stmt = $db->prepare("INSERT INTO projects (user_id, name, description, category, color, deadline, budget, currency, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'activo')");
-        $stmt->execute([$user['id'], $name, $description, $category, $color, $deadline, $budget, $currency]);
+        $stmt = $db->prepare("INSERT INTO projects (agency_id, user_id, name, description, category, color, deadline, budget, currency, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'activo')");
+        $stmt->execute([currentAgencyId(), $user['id'], $name, $description, $category, $color, $deadline, $budget, $currency]);
         $newId = $db->lastInsertId();
 
         // Vincular al creador como miembro Project Manager

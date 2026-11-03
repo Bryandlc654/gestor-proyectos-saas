@@ -53,4 +53,8 @@ abstract class DatabaseTestCase extends TestCase
     protected const PM = ['id' => 2, 'role' => 'project_manager'];
     protected const COLABORADOR = ['id' => 3, 'role' => 'colaborador'];
     protected const CLIENTE = ['id' => 4, 'role' => 'cliente'];
+
+    // Segunda agencia de los datos demo (agencia 2, "Estudio Norte", dueña del proyecto 3)
+    protected const ADMIN_B = ['id' => 5, 'role' => 'admin'];
+    protected const COLABORADOR_B = ['id' => 6, 'role' => 'colaborador'];
 }

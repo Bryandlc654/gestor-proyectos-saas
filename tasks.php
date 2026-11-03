@@ -27,32 +27,12 @@ if (!in_array($currentView, ['kanban', 'list'])) {
     $currentView = 'kanban';
 }
 
-// 1. Obtener proyectos permitidos para el usuario
-if ($userRole === 'admin') {
-    $projectsList = $db->query("SELECT id, name, color FROM projects ORDER BY name ASC")->fetchAll();
-    $allowedProjectIds = array_column($projectsList, 'id');
-} elseif ($userRole === 'cliente') {
-    $stmtP = $db->prepare("
-        SELECT p.id, p.name, p.color 
-        FROM projects p
-        INNER JOIN project_members pm ON p.id = pm.project_id
-        WHERE pm.user_id = ?
-        ORDER BY p.name ASC
-    ");
-    $stmtP->execute([$userId]);
-    $projectsList = $stmtP->fetchAll();
-    $allowedProjectIds = array_column($projectsList, 'id');
-} else {
-    $stmtP = $db->prepare("
-        SELECT id, name, color 
-        FROM projects 
-        WHERE user_id = ? OR id IN (SELECT project_id FROM project_members WHERE user_id = ?)
-        ORDER BY name ASC
-    ");
-    $stmtP->execute([$userId, $userId]);
-    $projectsList = $stmtP->fetchAll();
-    $allowedProjectIds = array_column($projectsList, 'id');
-}
+// 1. Proyectos visibles para el usuario (siempre dentro de su agencia)
+[$visibleSql, $visibleParams] = visibleProjectsSql();
+$stmtP = $db->prepare("SELECT id, name, color FROM projects WHERE id IN ({$visibleSql}) ORDER BY name ASC");
+$stmtP->execute($visibleParams);
+$projectsList = $stmtP->fetchAll();
+$allowedProjectIds = array_column($projectsList, 'id');
 
 // Colaboradores para el filtro: solo miembros (o propietarios) de los proyectos visibles
 if (empty($allowedProjectIds)) {

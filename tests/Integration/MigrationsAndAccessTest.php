@@ -68,7 +68,8 @@ final class MigrationsAndAccessTest extends DatabaseTestCase
         $repo = new ProjectRepository(static::$db);
 
         $this->assertTrue($repo->canAccess(1, 1, 'admin'));
-        $this->assertTrue($repo->canAccess(999, 1, 'admin'), 'El admin accede a todo');
+        $this->assertTrue($repo->canAccess(2, 1, 'admin'), 'El admin accede a todo lo de su agencia');
+        $this->assertFalse($repo->canAccess(999, 1, 'admin'));
         $this->assertTrue($repo->canAccess(1, 3, 'colaborador'));
         $this->assertTrue($repo->canAccess(1, 4, 'cliente'));
         $this->assertFalse($repo->canAccess(2, 4, 'cliente'), 'El cliente solo ve proyectos vinculados');

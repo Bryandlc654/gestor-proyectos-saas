@@ -11,208 +11,74 @@ $userRole = currentUserRole();
 $roleBadge = getRoleBadge($userRole);
 $userId = (int)$user['id'];
 
-// Consultas estadísticas filtradas según el nivel de acceso (Admin, PM, Colaborador o Cliente)
+// Todas las métricas se calculan sobre los proyectos visibles para el usuario: los de su agencia
+// según su rol (admin: todos; PM/colaborador: propios o asignados; cliente: vinculados)
+[$visibleSql, $visibleParams] = visibleProjectsSql();
+$inVisible = "IN ({$visibleSql})";
+
+// Ejecuta una consulta que repite la subconsulta de proyectos visibles $times veces
+$queryVisible = function (string $sql, int $times = 1) use ($db, $visibleParams): PDOStatement {
+    $stmt = $db->prepare($sql);
+    $stmt->execute(array_merge(...array_fill(0, $times, $visibleParams)));
+    return $stmt;
+};
+
+// 1. Métricas generales
+$globalStats = $queryVisible("
+    SELECT
+        (SELECT COUNT(*) FROM projects WHERE id {$inVisible}) as total_projects,
+        (SELECT COUNT(*) FROM projects WHERE id {$inVisible} AND status = 'activo') as active_projects,
+        (SELECT COUNT(*) FROM tickets WHERE project_id {$inVisible} AND status IN ('abierto', 'en_revision')) as open_tickets,
+        (SELECT COUNT(*) FROM tickets WHERE project_id {$inVisible} AND status = 'resuelto') as resolved_tickets,
+        COALESCE(SUM(CASE WHEN t.status = 'pendiente' THEN 1 ELSE 0 END), 0) as pending_tasks,
+        COALESCE(SUM(CASE WHEN t.status = 'en_progreso' THEN 1 ELSE 0 END), 0) as in_progress_tasks,
+        COALESCE(SUM(CASE WHEN t.status = 'completada' THEN 1 ELSE 0 END), 0) as completed_tasks,
+        COUNT(t.id) as total_tasks
+    FROM tasks t
+    WHERE t.project_id {$inVisible}
+", 5)->fetch() ?: [];
+
+// 2. Tareas por prioridad
+$tasksByPriority = $queryVisible("
+    SELECT priority, COUNT(*) as count
+    FROM tasks
+    WHERE project_id {$inVisible}
+    GROUP BY priority
+")->fetchAll();
+
+// 3. Proyectos por categoría
+$projectsByCategory = $queryVisible("
+    SELECT COALESCE(NULLIF(category, ''), 'General') as category_name, COUNT(*) as count
+    FROM projects
+    WHERE id {$inVisible}
+    GROUP BY category
+")->fetchAll();
+
+// 4. Progreso y carga de tareas por proyecto
+$projectProgressList = $queryVisible("
+    SELECT
+        p.id,
+        p.name,
+        p.color,
+        COUNT(t.id) as total_tasks,
+        SUM(CASE WHEN t.status = 'completada' THEN 1 ELSE 0 END) as completed_tasks
+    FROM projects p
+    LEFT JOIN tasks t ON p.id = t.project_id
+    WHERE p.id {$inVisible}
+    GROUP BY p.id
+    ORDER BY total_tasks DESC
+    LIMIT 6
+")->fetchAll();
+
+// 5. Estadísticas financieras (solo admin de la agencia)
+$financialStats = ['total_budget' => 0, 'total_collected' => 0, 'total_pending' => 0];
 if ($userRole === 'admin') {
-    // 1. Métricas Globales
-    $stmtGlobal = $db->query("
-        SELECT 
-            (SELECT COUNT(*) FROM projects) as total_projects,
-            (SELECT COUNT(*) FROM projects WHERE status = 'activo') as active_projects,
-            (SELECT COUNT(*) FROM tickets WHERE status IN ('abierto', 'en_revision')) as open_tickets,
-            (SELECT COUNT(*) FROM tickets WHERE status = 'resuelto') as resolved_tickets,
-            COALESCE(SUM(CASE WHEN t.status = 'pendiente' THEN 1 ELSE 0 END), 0) as pending_tasks,
-            COALESCE(SUM(CASE WHEN t.status = 'en_progreso' THEN 1 ELSE 0 END), 0) as in_progress_tasks,
-            COALESCE(SUM(CASE WHEN t.status = 'completada' THEN 1 ELSE 0 END), 0) as completed_tasks,
-            COUNT(t.id) as total_tasks
-        FROM tasks t
-    ");
-    $globalStats = $stmtGlobal->fetch() ?: [];
-
-    // 2. Tareas por Prioridad
-    $stmtPrio = $db->query("
-        SELECT priority, COUNT(*) as count 
-        FROM tasks 
-        GROUP BY priority
-    ");
-    $tasksByPriority = $stmtPrio->fetchAll();
-
-    // 3. Proyectos por Categoría
-    $stmtCat = $db->query("
-        SELECT COALESCE(NULLIF(category, ''), 'General') as category_name, COUNT(*) as count 
-        FROM projects 
-        GROUP BY category
-    ");
-    $projectsByCategory = $stmtCat->fetchAll();
-
-    // 4. Progreso y Carga de Tareas por Proyecto
-    $stmtProg = $db->query("
-        SELECT 
-            p.id, 
-            p.name, 
-            p.color,
-            COUNT(t.id) as total_tasks,
-            SUM(CASE WHEN t.status = 'completada' THEN 1 ELSE 0 END) as completed_tasks
-        FROM projects p
-        LEFT JOIN tasks t ON p.id = t.project_id
-        GROUP BY p.id
-        ORDER BY total_tasks DESC
-        LIMIT 6
-    ");
-    $projectProgressList = $stmtProg->fetchAll();
-
-    // 5. Estadísticas Financieras (Solo Admin)
-    $stmtFin = $db->query("
-        SELECT 
-            COALESCE(SUM(budget), 0) as total_budget,
-            (SELECT COALESCE(SUM(amount), 0) FROM invoices WHERE status = 'pagada') as total_collected,
-            (SELECT COALESCE(SUM(amount), 0) FROM invoices WHERE status = 'pendiente') as total_pending
-        FROM projects
-    ");
-    $financialStats = $stmtFin->fetch() ?: ['total_budget' => 0, 'total_collected' => 0, 'total_pending' => 0];
-
-    // 6. Tickets por Estado
-    $stmtTicketsStatus = $db->query("
-        SELECT status, COUNT(*) as count 
-        FROM tickets 
-        GROUP BY status
-    ");
-    $ticketsByStatus = $stmtTicketsStatus->fetchAll();
-
-} elseif ($userRole === 'cliente') {
-    // Para el Cliente: Métricas estrictamente de los proyectos a los que pertenece
-    $stmtGlobal = $db->prepare("
-        SELECT 
-            (SELECT COUNT(*) FROM project_members WHERE user_id = ?) as total_projects,
-            (SELECT COUNT(*) FROM projects p INNER JOIN project_members pm ON p.id = pm.project_id WHERE pm.user_id = ? AND p.status = 'activo') as active_projects,
-            (SELECT COUNT(*) FROM tickets t INNER JOIN project_members pm ON t.project_id = pm.project_id WHERE pm.user_id = ? AND t.status IN ('abierto', 'en_revision')) as open_tickets,
-            (SELECT COUNT(*) FROM tickets t INNER JOIN project_members pm ON t.project_id = pm.project_id WHERE pm.user_id = ? AND t.status = 'resuelto') as resolved_tickets,
-            COALESCE(SUM(CASE WHEN t.status = 'pendiente' THEN 1 ELSE 0 END), 0) as pending_tasks,
-            COALESCE(SUM(CASE WHEN t.status = 'en_progreso' THEN 1 ELSE 0 END), 0) as in_progress_tasks,
-            COALESCE(SUM(CASE WHEN t.status = 'completada' THEN 1 ELSE 0 END), 0) as completed_tasks,
-            COUNT(t.id) as total_tasks
-        FROM tasks t
-        INNER JOIN project_members pm ON t.project_id = pm.project_id
-        WHERE pm.user_id = ?
-    ");
-    $stmtGlobal->execute([$userId, $userId, $userId, $userId, $userId]);
-    $globalStats = $stmtGlobal->fetch() ?: [];
-
-    $stmtPrio = $db->prepare("
-        SELECT t.priority, COUNT(*) as count 
-        FROM tasks t
-        INNER JOIN project_members pm ON t.project_id = pm.project_id
-        WHERE pm.user_id = ?
-        GROUP BY t.priority
-    ");
-    $stmtPrio->execute([$userId]);
-    $tasksByPriority = $stmtPrio->fetchAll();
-
-    $stmtCat = $db->prepare("
-        SELECT COALESCE(NULLIF(p.category, ''), 'General') as category_name, COUNT(*) as count 
-        FROM projects p
-        INNER JOIN project_members pm ON p.id = pm.project_id
-        WHERE pm.user_id = ?
-        GROUP BY p.category
-    ");
-    $stmtCat->execute([$userId]);
-    $projectsByCategory = $stmtCat->fetchAll();
-
-    $stmtProg = $db->prepare("
-        SELECT 
-            p.id, 
-            p.name, 
-            p.color,
-            COUNT(t.id) as total_tasks,
-            SUM(CASE WHEN t.status = 'completada' THEN 1 ELSE 0 END) as completed_tasks
-        FROM projects p
-        INNER JOIN project_members pm ON p.id = pm.project_id
-        LEFT JOIN tasks t ON p.id = t.project_id
-        WHERE pm.user_id = ?
-        GROUP BY p.id
-        ORDER BY total_tasks DESC
-        LIMIT 6
-    ");
-    $stmtProg->execute([$userId]);
-    $projectProgressList = $stmtProg->fetchAll();
-
-    $stmtTicketsStatus = $db->prepare("
-        SELECT t.status, COUNT(*) as count 
-        FROM tickets t
-        INNER JOIN project_members pm ON t.project_id = pm.project_id
-        WHERE pm.user_id = ?
-        GROUP BY t.status
-    ");
-    $stmtTicketsStatus->execute([$userId]);
-    $ticketsByStatus = $stmtTicketsStatus->fetchAll();
-
-    $financialStats = ['total_budget' => 0, 'total_collected' => 0, 'total_pending' => 0];
-
-} else {
-    // PM y Colaborador
-    $stmtGlobal = $db->prepare("
-        SELECT 
-            (SELECT COUNT(*) FROM projects WHERE user_id = ? OR id IN (SELECT project_id FROM project_members WHERE user_id = ?)) as total_projects,
-            (SELECT COUNT(*) FROM projects WHERE (user_id = ? OR id IN (SELECT project_id FROM project_members WHERE user_id = ?)) AND status = 'activo') as active_projects,
-            (SELECT COUNT(*) FROM tickets t INNER JOIN projects p ON t.project_id = p.id WHERE (p.user_id = ? OR p.id IN (SELECT project_id FROM project_members WHERE user_id = ?)) AND t.status IN ('abierto', 'en_revision')) as open_tickets,
-            (SELECT COUNT(*) FROM tickets t INNER JOIN projects p ON t.project_id = p.id WHERE (p.user_id = ? OR p.id IN (SELECT project_id FROM project_members WHERE user_id = ?)) AND t.status = 'resuelto') as resolved_tickets,
-            COALESCE(SUM(CASE WHEN t.status = 'pendiente' THEN 1 ELSE 0 END), 0) as pending_tasks,
-            COALESCE(SUM(CASE WHEN t.status = 'en_progreso' THEN 1 ELSE 0 END), 0) as in_progress_tasks,
-            COALESCE(SUM(CASE WHEN t.status = 'completada' THEN 1 ELSE 0 END), 0) as completed_tasks,
-            COUNT(t.id) as total_tasks
-        FROM tasks t
-        INNER JOIN projects p ON t.project_id = p.id
-        WHERE p.user_id = ? OR p.id IN (SELECT project_id FROM project_members WHERE user_id = ?)
-    ");
-    $stmtGlobal->execute([$userId, $userId, $userId, $userId, $userId, $userId, $userId, $userId, $userId, $userId]);
-    $globalStats = $stmtGlobal->fetch() ?: [];
-
-    $stmtPrio = $db->prepare("
-        SELECT t.priority, COUNT(*) as count 
-        FROM tasks t
-        INNER JOIN projects p ON t.project_id = p.id
-        WHERE p.user_id = ? OR p.id IN (SELECT project_id FROM project_members WHERE user_id = ?)
-        GROUP BY t.priority
-    ");
-    $stmtPrio->execute([$userId, $userId]);
-    $tasksByPriority = $stmtPrio->fetchAll();
-
-    $stmtCat = $db->prepare("
-        SELECT COALESCE(NULLIF(p.category, ''), 'General') as category_name, COUNT(*) as count 
-        FROM projects p
-        WHERE p.user_id = ? OR p.id IN (SELECT project_id FROM project_members WHERE user_id = ?)
-        GROUP BY p.category
-    ");
-    $stmtCat->execute([$userId, $userId]);
-    $projectsByCategory = $stmtCat->fetchAll();
-
-    $stmtProg = $db->prepare("
-        SELECT 
-            p.id, 
-            p.name, 
-            p.color,
-            COUNT(t.id) as total_tasks,
-            SUM(CASE WHEN t.status = 'completada' THEN 1 ELSE 0 END) as completed_tasks
-        FROM projects p
-        LEFT JOIN tasks t ON p.id = t.project_id
-        WHERE p.user_id = ? OR p.id IN (SELECT project_id FROM project_members WHERE user_id = ?)
-        GROUP BY p.id
-        ORDER BY total_tasks DESC
-        LIMIT 6
-    ");
-    $stmtProg->execute([$userId, $userId]);
-    $projectProgressList = $stmtProg->fetchAll();
-
-    $stmtTicketsStatus = $db->prepare("
-        SELECT t.status, COUNT(*) as count 
-        FROM tickets t
-        INNER JOIN projects p ON t.project_id = p.id
-        WHERE p.user_id = ? OR p.id IN (SELECT project_id FROM project_members WHERE user_id = ?)
-        GROUP BY t.status
-    ");
-    $stmtTicketsStatus->execute([$userId, $userId]);
-    $ticketsByStatus = $stmtTicketsStatus->fetchAll();
-
-    $financialStats = ['total_budget' => 0, 'total_collected' => 0, 'total_pending' => 0];
+    $financialStats = $queryVisible("
+        SELECT
+            (SELECT COALESCE(SUM(budget), 0) FROM projects WHERE id {$inVisible}) as total_budget,
+            (SELECT COALESCE(SUM(amount), 0) FROM invoices WHERE project_id {$inVisible} AND status = 'pagada') as total_collected,
+            (SELECT COALESCE(SUM(amount), 0) FROM invoices WHERE project_id {$inVisible} AND status = 'pendiente') as total_pending
+    ", 3)->fetch() ?: $financialStats;
 }
 
 // Variables procesadas para las tarjetas

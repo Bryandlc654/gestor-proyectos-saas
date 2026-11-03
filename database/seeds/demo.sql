@@ -1,16 +1,25 @@
 -- Datos de demostración (solo para entornos locales). Contraseña de todas las cuentas: admin123
 -- Uso: php database/migrate.php --seed
 
-INSERT INTO `users` (`id`, `name`, `email`, `role`, `password`) VALUES
-(1, 'Administrador Demo', 'admin@demo.com', 'admin', '$2y$10$3ZZzNvgVe8cVluIKNJM8DeWT04pOpeKl8zd0NqDtv/h/pe9yjRVq6'),
-(2, 'Carlos PM', 'pm@demo.com', 'project_manager', '$2y$10$3ZZzNvgVe8cVluIKNJM8DeWT04pOpeKl8zd0NqDtv/h/pe9yjRVq6'),
-(3, 'Ana Colaboradora', 'colaborador@demo.com', 'colaborador', '$2y$10$3ZZzNvgVe8cVluIKNJM8DeWT04pOpeKl8zd0NqDtv/h/pe9yjRVq6'),
-(4, 'Roberto Cliente', 'cliente@demo.com', 'cliente', '$2y$10$3ZZzNvgVe8cVluIKNJM8DeWT04pOpeKl8zd0NqDtv/h/pe9yjRVq6')
+-- Dos agencias independientes: cada una solo ve sus propios usuarios y proyectos
+INSERT INTO `agencies` (`id`, `name`) VALUES
+(1, 'Agencia Demo'),
+(2, 'Estudio Norte')
+ON DUPLICATE KEY UPDATE `id`=`id`;
+
+INSERT INTO `users` (`id`, `agency_id`, `name`, `email`, `role`, `password`) VALUES
+(1, 1, 'Administrador Demo', 'admin@demo.com', 'admin', '$2y$10$3ZZzNvgVe8cVluIKNJM8DeWT04pOpeKl8zd0NqDtv/h/pe9yjRVq6'),
+(2, 1, 'Carlos PM', 'pm@demo.com', 'project_manager', '$2y$10$3ZZzNvgVe8cVluIKNJM8DeWT04pOpeKl8zd0NqDtv/h/pe9yjRVq6'),
+(3, 1, 'Ana Colaboradora', 'colaborador@demo.com', 'colaborador', '$2y$10$3ZZzNvgVe8cVluIKNJM8DeWT04pOpeKl8zd0NqDtv/h/pe9yjRVq6'),
+(4, 1, 'Roberto Cliente', 'cliente@demo.com', 'cliente', '$2y$10$3ZZzNvgVe8cVluIKNJM8DeWT04pOpeKl8zd0NqDtv/h/pe9yjRVq6'),
+(5, 2, 'Lucía Norte', 'admin@norte.com', 'admin', '$2y$10$3ZZzNvgVe8cVluIKNJM8DeWT04pOpeKl8zd0NqDtv/h/pe9yjRVq6'),
+(6, 2, 'Diego Norte', 'colaborador@norte.com', 'colaborador', '$2y$10$3ZZzNvgVe8cVluIKNJM8DeWT04pOpeKl8zd0NqDtv/h/pe9yjRVq6')
 ON DUPLICATE KEY UPDATE `role`=VALUES(`role`);
 
-INSERT INTO `projects` (`id`, `user_id`, `name`, `description`, `category`, `status`, `color`, `deadline`) VALUES
-(1, 1, 'Rediseño E-commerce 2026', 'Modernización de la interfaz de usuario, pasarela de pagos y panel de control para clientes.', 'Diseño & UI/UX', 'activo', '#6366F1', DATE_ADD(CURRENT_DATE, INTERVAL 21 DAY)),
-(2, 1, 'App Móvil de Entregas', 'Aplicación interna para seguimiento y asignación de rutas a repartidores.', 'Móvil', 'activo', '#0EA5E9', DATE_ADD(CURRENT_DATE, INTERVAL 45 DAY))
+INSERT INTO `projects` (`id`, `agency_id`, `user_id`, `name`, `description`, `category`, `status`, `color`, `deadline`) VALUES
+(1, 1, 1, 'Rediseño E-commerce 2026', 'Modernización de la interfaz de usuario, pasarela de pagos y panel de control para clientes.', 'Diseño & UI/UX', 'activo', '#6366F1', DATE_ADD(CURRENT_DATE, INTERVAL 21 DAY)),
+(2, 1, 1, 'App Móvil de Entregas', 'Aplicación interna para seguimiento y asignación de rutas a repartidores.', 'Móvil', 'activo', '#0EA5E9', DATE_ADD(CURRENT_DATE, INTERVAL 45 DAY)),
+(3, 2, 5, 'Web Corporativa Norte', 'Sitio institucional de Estudio Norte.', 'Desarrollo Web', 'activo', '#10B981', DATE_ADD(CURRENT_DATE, INTERVAL 30 DAY))
 ON DUPLICATE KEY UPDATE `id`=`id`;
 
 INSERT INTO `project_folders` (`id`, `project_id`, `name`, `color`) VALUES
@@ -52,7 +61,11 @@ INSERT INTO `comments` (`project_id`, `user_id`, `content`) VALUES
 -- Miembros de los proyectos demo
 INSERT IGNORE INTO `project_members` (`project_id`, `user_id`, `role`) VALUES
 (1, 1, 'project_manager'), (1, 2, 'project_manager'), (1, 3, 'colaborador'), (1, 4, 'cliente'),
-(2, 1, 'project_manager'), (2, 2, 'project_manager'), (2, 3, 'colaborador');
+(2, 1, 'project_manager'), (2, 2, 'project_manager'), (2, 3, 'colaborador'),
+(3, 5, 'project_manager'), (3, 6, 'colaborador');
+
+INSERT INTO `tasks` (`project_id`, `title`, `description`, `priority`, `status`, `assigned_user_id`) VALUES
+(3, 'Maquetar página de inicio', 'Tarea interna de Estudio Norte.', 'media', 'pendiente', 6);
 
 -- Presupuestos y facturas de ejemplo
 UPDATE `projects` SET `budget` = 4500.00, `currency` = 'USD' WHERE `id` = 1;

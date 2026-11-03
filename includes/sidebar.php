@@ -4,32 +4,16 @@ $currentPage = basename($_SERVER['PHP_SELF']);
 $db = getDB();
 $userRole = currentUserRole();
 $roleBadge = getRoleBadge($userRole);
-$customLogo = getAppSetting('app_logo', '');
-$customAppName = getAppSetting('app_name', 'FlowTasks');
+// Marca de la agencia del usuario
+$agency = currentAgency();
+$customLogo = $agency['logo'] ?? '';
+$customAppName = $agency['name'];
 
-// Obtener proyectos rápidos del usuario según su rol para el sidebar
-if ($userRole === 'admin') {
-    $stmtSidebar = $db->query("SELECT id, name, color FROM projects ORDER BY updated_at DESC LIMIT 6");
-    $sidebarProjects = $stmtSidebar->fetchAll();
-} elseif ($userRole === 'cliente') {
-    $stmtSidebar = $db->prepare("
-        SELECT p.id, p.name, p.color 
-        FROM projects p
-        INNER JOIN project_members pm ON p.id = pm.project_id
-        WHERE pm.user_id = ?
-        ORDER BY p.updated_at DESC LIMIT 6
-    ");
-    $stmtSidebar->execute([$_SESSION['user_id']]);
-    $sidebarProjects = $stmtSidebar->fetchAll();
-} else {
-    $stmtSidebar = $db->prepare("
-        SELECT id, name, color FROM projects 
-        WHERE user_id = ? OR id IN (SELECT project_id FROM project_members WHERE user_id = ?)
-        ORDER BY updated_at DESC LIMIT 6
-    ");
-    $stmtSidebar->execute([$_SESSION['user_id'], $_SESSION['user_id']]);
-    $sidebarProjects = $stmtSidebar->fetchAll();
-}
+// Proyectos recientes visibles para el usuario (siempre dentro de su agencia)
+[$visibleSql, $visibleParams] = visibleProjectsSql();
+$stmtSidebar = $db->prepare("SELECT id, name, color FROM projects WHERE id IN ({$visibleSql}) ORDER BY updated_at DESC LIMIT 6");
+$stmtSidebar->execute($visibleParams);
+$sidebarProjects = $stmtSidebar->fetchAll();
 
 // Clases de un enlace del menú: mismo estilo activo/inactivo para todas las secciones
 $navItemClass = function (bool $active): string {

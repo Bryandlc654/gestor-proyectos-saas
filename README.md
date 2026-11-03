@@ -6,8 +6,14 @@ Un sistema de gestión ágil, moderno e intuitivo desarrollado en **PHP 8**, **M
 
 ## 🚀 Características Principales
 
+### 0. Multi-agencia (SaaS)
+- **Cada agencia es un espacio aislado**: sus usuarios, proyectos, tareas, facturas y marca (nombre y logo) solo los ve esa agencia. El filtro se aplica en el servidor a partir de la agencia guardada en la base de datos, no de la sesión.
+- **Registro = nueva agencia**: quien se registra crea su agencia y queda como administrador. Ya no se puede elegir rol al registrarse.
+- **Invitaciones por enlace**: el administrador invita a su equipo o a sus clientes desde *Usuarios → Invitar*, eligiendo el rol. El enlace sirve una sola vez, caduca a los 7 días y se puede revocar; en la base de datos solo se guarda su hash.
+- Los roles (administrador, project manager, colaborador, cliente) funcionan igual que antes, pero siempre dentro de la propia agencia.
+
 ### 1. Autenticación y Seguridad
-- **Inicio de sesión y registro** con validación y contraseñas cifradas mediante `password_hash()` con algoritmo **BCrypt**.
+- **Inicio de sesión y registro de agencias** con validación y contraseñas cifradas mediante `password_hash()` con algoritmo **BCrypt**.
 - Protección **CSRF** en todos los formularios y acciones del sistema.
 - Consultas parametrizadas con **PDO Prepared Statements** para prevenir inyección SQL.
 - Sanitización de salidas con `htmlspecialchars` contra ataques XSS.
@@ -80,14 +86,14 @@ http://localhost:8000
 ---
 
 ## 🔑 Credenciales de Demostración
-Si cargaste los datos demo con `--seed` (solo en local), hay cuentas para los cuatro roles (`admin@demo.com`, `pm@demo.com`, `colaborador@demo.com`, `cliente@demo.com`). La contraseña está indicada al inicio de `database/seeds/demo.sql`. **No cargues los datos demo en producción.**
+Si cargaste los datos demo con `--seed` (solo en local), hay dos agencias: *Agencia Demo*, con cuentas para los cuatro roles (`admin@demo.com`, `pm@demo.com`, `colaborador@demo.com`, `cliente@demo.com`), y *Estudio Norte* (`admin@norte.com`, `colaborador@norte.com`), útil para comprobar que una agencia no ve el contenido de otra. La contraseña está indicada al inicio de `database/seeds/demo.sql`. **No cargues los datos demo en producción.**
 
 ---
 
 ## 🧑‍💻 Desarrollo
 
 ### Estructura
-- `src/` contiene las clases del namespace `App\` (PSR-4): `Http` (Request, Router), `Controller`, `Repository`, `Security` (permisos, CSRF, límite de intentos de login), `Upload`, `Database` (migraciones) y `Support`.
+- `src/` contiene las clases del namespace `App\` (PSR-4): `Http` (Request, Router), `Controller`, `Repository` (proyectos, tareas, agencias, invitaciones), `Service` (altas de cuentas), `Security` (permisos, CSRF, límite de intentos de login), `Upload`, `Database` (migraciones) y `Support`.
 - `config/app.php` mantiene las funciones globales de siempre (`canManageTasks()`, `csrf_token()`, ...) como fachada sobre esas clases.
 - `api/tasks.php` usa el patrón Router + Controller (`App\Controller\TaskController`). El resto de endpoints de `api/` sigue siendo procedural y se puede migrar al mismo patrón.
 - `project-view.php` arma los datos de la página; el HTML de cada pestaña y modal está en `includes/project/` y su JavaScript en `assets/js/project-view.js`.
