@@ -1,6 +1,27 @@
-# Deshabilitar ejecución de scripts PHP en la carpeta de uploads por seguridad
-<FilesMatch "\.(php|phtml|php3|php4|php5|php7|phps)$">
-    Order Deny,Allow
-    Deny from all
+# Carpeta de subidas: nunca ejecutar código y no listar contenido
+Options -Indexes -ExecCGI
+
+# Desactivar el intérprete PHP (mod_php)
+<IfModule mod_php.c>
+    php_flag engine off
+</IfModule>
+<IfModule mod_php7.c>
+    php_flag engine off
+</IfModule>
+
+# Bloquear cualquier script o archivo de configuración (Apache 2.4+)
+<FilesMatch "(?i)\.(php\d?|phtml|phar|pht|phps|cgi|pl|py|sh|asp|aspx|jsp|htaccess|htpasswd|html?|xhtml|svg|js)$">
+    Require all denied
 </FilesMatch>
-Options -Indexes
+
+# Servir el resto sin que el navegador adivine el tipo y forzar descarga salvo imágenes
+<IfModule mod_headers.c>
+    Header set X-Content-Type-Options "nosniff"
+    Header set Content-Security-Policy "default-src 'none'; img-src 'self'; style-src 'unsafe-inline'; sandbox"
+    <FilesMatch "(?i)\.(jpe?g|png|gif|webp)$">
+        Header unset Content-Disposition
+    </FilesMatch>
+    <FilesMatch "(?i)\.(?!(jpe?g|png|gif|webp)$)[^.]+$">
+        Header set Content-Disposition "attachment"
+    </FilesMatch>
+</IfModule>

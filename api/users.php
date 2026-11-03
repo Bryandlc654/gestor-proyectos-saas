@@ -96,8 +96,8 @@ switch ($action) {
             exit;
         }
 
-        if (strlen($password) < 6) {
-            echo json_encode(['success' => false, 'message' => 'La contraseña debe tener al menos 6 caracteres']);
+        if (strlen($password) < 8) {
+            echo json_encode(['success' => false, 'message' => 'La contraseña debe tener al menos 8 caracteres']);
             exit;
         }
 
@@ -150,7 +150,8 @@ switch ($action) {
             exit;
         } catch (Exception $e) {
             $db->rollBack();
-            echo json_encode(['success' => false, 'message' => 'Error al crear el usuario: ' . $e->getMessage()]);
+            error_log('Error al crear usuario: ' . $e->getMessage());
+            echo json_encode(['success' => false, 'message' => 'Error al crear el usuario. Inténtalo de nuevo.']);
             exit;
         }
 
@@ -205,7 +206,8 @@ switch ($action) {
             exit;
         } catch (Exception $e) {
             $db->rollBack();
-            echo json_encode(['success' => false, 'message' => 'Error al guardar asignaciones: ' . $e->getMessage()]);
+            error_log('Error al guardar asignaciones: ' . $e->getMessage());
+            echo json_encode(['success' => false, 'message' => 'Error al guardar asignaciones. Inténtalo de nuevo.']);
             exit;
         }
 

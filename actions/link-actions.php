@@ -20,12 +20,16 @@ if (!verify_csrf($csrf)) {
     exit;
 }
 
-// Verificar pertenencia del proyecto
-$stmtProj = $db->prepare("SELECT id FROM projects WHERE id = ? AND user_id = ?");
-$stmtProj->execute([$projectId, $user['id']]);
-if (!$stmtProj->fetch()) {
+// Verificar acceso al proyecto según rol (propietario, miembro o admin)
+if (!canAccessProject($projectId, $user['id'], $user['role'])) {
     setFlash('error', 'Acceso no autorizado.');
     header('Location: ../dashboard.php');
+    exit;
+}
+
+if (!canManageAttachments($user['role'])) {
+    setFlash('error', 'Tu nivel de acceso no permite gestionar enlaces.');
+    header("Location: ../project-view.php?id={$projectId}#adjuntos");
     exit;
 }
 
@@ -36,7 +40,7 @@ switch ($action) {
 
         if (empty($title) || empty($url)) {
             setFlash('error', 'El nombre y la URL del enlace son obligatorios.');
-        } elseif (!filter_var($url, FILTER_VALIDATE_URL)) {
+        } elseif (!isSafeUrl($url)) {
             setFlash('error', 'La URL ingresada no es válida (debe incluir http:// o https://).');
         } else {
             $stmt = $db->prepare("INSERT INTO project_links (project_id, title, url) VALUES (?, ?, ?)");

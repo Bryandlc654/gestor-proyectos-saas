@@ -20,12 +20,23 @@ if (!verify_csrf($csrf)) {
     exit;
 }
 
-// Verificar pertenencia del proyecto
-$stmtProj = $db->prepare("SELECT id FROM projects WHERE id = ? AND user_id = ?");
-$stmtProj->execute([$projectId, $user['id']]);
-if (!$stmtProj->fetch()) {
+// Verificar acceso al proyecto según rol (propietario, miembro o admin)
+if (!canAccessProject($projectId, $user['id'], $user['role'])) {
     setFlash('error', 'Acceso no autorizado.');
     header('Location: ../dashboard.php');
+    exit;
+}
+
+// Permisos por acción según rol (todos pueden crear tickets)
+$allowed = match ($action) {
+    'create'        => canCreateTickets($user['role']),
+    'update_status' => canChangeTicketStatus($user['role']),
+    'delete'        => canDeleteTickets($user['role']),
+    default         => false,
+};
+if (!$allowed) {
+    setFlash('error', 'Tu nivel de acceso no permite realizar esta acción.');
+    header("Location: ../project-view.php?id={$projectId}#tickets");
     exit;
 }
 

@@ -1,0 +1,11 @@
+# Bloquear acceso web a archivos ocultos y sensibles (.env, .git, etc.)
+<FilesMatch "^\.">
+    Require all denied
+</FilesMatch>
+RedirectMatch 404 /\.git
+
+<FilesMatch "(?i)\.(sql|md|example|log|ini)$">
+    Require all denied
+</FilesMatch>
+
+Options -Indexes

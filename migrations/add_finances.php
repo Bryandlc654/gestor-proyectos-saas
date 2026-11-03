@@ -1,4 +1,9 @@
 <?php
+// Solo ejecutable desde línea de comandos: php migrations/add_finances.php
+if (PHP_SAPI !== 'cli') {
+    http_response_code(404);
+    exit;
+}
 require_once __DIR__ . '/../config/app.php';
 
 $db = getDB();

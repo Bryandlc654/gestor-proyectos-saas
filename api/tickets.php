@@ -59,6 +59,12 @@ switch ($action) {
         break;
 
     case 'update_status':
+        if (!canChangeTicketStatus($user['role'])) {
+            http_response_code(403);
+            echo json_encode(['success' => false, 'message' => 'Tu nivel de acceso no permite cambiar el estado de tickets']);
+            exit;
+        }
+
         $ticketId = (int)($_POST['ticket_id'] ?? 0);
         $status = in_array($_POST['status'] ?? '', ['abierto', 'en_revision', 'resuelto', 'cerrado']) ? $_POST['status'] : 'abierto';
 
@@ -74,6 +80,12 @@ switch ($action) {
         break;
 
     case 'delete':
+        if (!canDeleteTickets($user['role'])) {
+            http_response_code(403);
+            echo json_encode(['success' => false, 'message' => 'Solo los Administradores y Project Managers pueden eliminar tickets']);
+            exit;
+        }
+
         $ticketId = (int)($_POST['ticket_id'] ?? 0);
         $stmt = $db->prepare("DELETE FROM tickets WHERE id = ? AND project_id = ?");
         $stmt->execute([$ticketId, $projectId]);

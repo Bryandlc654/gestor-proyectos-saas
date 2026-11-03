@@ -1,11 +1,13 @@
 <?php
 // config/database.php - Configuración y conexión segura a MySQL mediante PDO
 
-define('DB_HOST', getenv('DB_HOST') ?: '193.203.175.226');
-define('DB_PORT', getenv('DB_PORT') ?: '3306');
-define('DB_NAME', getenv('DB_NAME') ?: 'u560058480_gesttareas');
-define('DB_USER', getenv('DB_USER') ?: 'u560058480_gesttareas');
-define('DB_PASS', getenv('DB_PASS') ?: '@:RP7Z~h');
+require_once __DIR__ . '/env.php';
+
+define('DB_HOST', env('DB_HOST', '127.0.0.1'));
+define('DB_PORT', env('DB_PORT', '3306'));
+define('DB_NAME', env('DB_NAME', 'gestor_proyectos'));
+define('DB_USER', env('DB_USER', 'root'));
+define('DB_PASS', env('DB_PASS', ''));
 
 function getDB(): PDO {
     static $pdo = null;
@@ -21,8 +23,15 @@ function getDB(): PDO {
         try {
             $pdo = new PDO($dsn, DB_USER, DB_PASS, $options);
         } catch (PDOException $e) {
-            // Interfaz visual de error amigable si la BD aún no ha sido importada
+            error_log('Error de conexión a MySQL: ' . $e->getMessage());
             http_response_code(500);
+
+            // En producción no se exponen detalles de la conexión
+            if (isProduction()) {
+                exit('Servicio no disponible temporalmente. Inténtalo de nuevo más tarde.');
+            }
+
+            // Interfaz visual de error amigable si la BD aún no ha sido importada (solo desarrollo)
             ?>
             <!DOCTYPE html>
             <html lang="es">
@@ -44,7 +53,7 @@ function getDB(): PDO {
                         <p class="text-amber-400 font-semibold mb-1">Detalle del error:</p>
                         <?= htmlspecialchars($e->getMessage()) ?>
                     </div>
-                    <p class="text-xs text-slate-400">Host: <?= DB_HOST ?> | BD: <?= DB_NAME ?> | Usuario: <?= DB_USER ?></p>
+                    <p class="text-xs text-slate-400">Host: <?= htmlspecialchars(DB_HOST) ?> | BD: <?= htmlspecialchars(DB_NAME) ?></p>
                 </div>
             </body>
             </html>

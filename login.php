@@ -21,6 +21,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $error = 'Token de seguridad inválido. Por favor intenta nuevamente.';
     } elseif (empty($email) || empty($password)) {
         $error = 'Por favor completa todos los campos.';
+    } elseif (isLoginThrottled($email, $_SERVER['REMOTE_ADDR'] ?? '')) {
+        $error = 'Demasiados intentos fallidos. Espera unos minutos antes de volver a intentarlo.';
     } else {
         $db = getDB();
         $stmt = $db->prepare("SELECT id, name, email, role, password FROM users WHERE email = ? LIMIT 1");
@@ -28,6 +30,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $user = $stmt->fetch();
 
         if ($user && password_verify($password, $user['password'])) {
+            clearLoginAttempts($email);
             // Regenerar ID de sesión para prevenir Session Fixation
             session_regenerate_id(true);
             $_SESSION['user_id'] = $user['id'];
@@ -39,6 +42,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             header('Location: dashboard.php');
             exit;
         } else {
+            recordFailedLogin($email, $_SERVER['REMOTE_ADDR'] ?? '');
             $error = 'Correo electrónico o contraseña incorrectos.';
         }
     }

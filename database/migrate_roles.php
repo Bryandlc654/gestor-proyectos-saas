@@ -1,4 +1,9 @@
 <?php
+// Solo ejecutable desde línea de comandos: php database/migrate_roles.php
+if (PHP_SAPI !== 'cli') {
+    http_response_code(404);
+    exit;
+}
 // database/migrate_roles.php - Migración para roles y niveles de acceso
 require_once __DIR__ . '/../config/database.php';
 

@@ -1,4 +1,9 @@
 <?php
+// Solo ejecutable desde línea de comandos: php database/migrate.php
+if (PHP_SAPI !== 'cli') {
+    http_response_code(404);
+    exit;
+}
 // database/migrate.php - Migración para soporte de adjuntos y checklists vinculados a tareas
 require_once __DIR__ . '/../config/database.php';
 
