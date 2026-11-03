@@ -23,24 +23,15 @@ $filterStatus = $_GET['status'] ?? 'todos';
 $filterProject = (int)($_GET['project_id'] ?? 0);
 $search = trim($_GET['search'] ?? '');
 
-// Lista de proyectos para el selector
-if ($userRole === 'admin') {
-    $projectsList = $db->query("SELECT id, name, currency FROM projects ORDER BY name ASC")->fetchAll();
-} else {
-    $stmtP = $db->prepare("SELECT id, name, currency FROM projects WHERE user_id = ? OR id IN (SELECT project_id FROM project_members WHERE user_id = ?) ORDER BY name ASC");
-    $stmtP->execute([$userId, $userId]);
-    $projectsList = $stmtP->fetchAll();
-}
+// Proyectos visibles para el usuario (siempre dentro de su agencia)
+[$visibleSql, $visibleParams] = visibleProjectsSql();
+$stmtP = $db->prepare("SELECT id, name, currency FROM projects WHERE id IN ({$visibleSql}) ORDER BY name ASC");
+$stmtP->execute($visibleParams);
+$projectsList = $stmtP->fetchAll();
 
-// Construir query de facturas
-$whereClauses = [];
-$params = [];
-
-if ($userRole !== 'admin') {
-    $whereClauses[] = "(p.user_id = ? OR p.id IN (SELECT project_id FROM project_members WHERE user_id = ?))";
-    $params[] = $userId;
-    $params[] = $userId;
-}
+// Construir query de facturas: solo de proyectos visibles
+$whereClauses = ["i.project_id IN ({$visibleSql})"];
+$params = $visibleParams;
 
 if ($filterStatus !== 'todos' && in_array($filterStatus, ['pendiente', 'pagada', 'anulada'])) {
     $whereClauses[] = "i.status = ?";
@@ -59,7 +50,7 @@ if (!empty($search)) {
     $params[] = "%{$search}%";
 }
 
-$whereSql = !empty($whereClauses) ? "WHERE " . implode(" AND ", $whereClauses) : "";
+$whereSql = "WHERE " . implode(" AND ", $whereClauses);
 
 // Obtener totales para los KPI cards
 $kpiSql = "

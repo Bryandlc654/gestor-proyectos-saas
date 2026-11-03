@@ -16,6 +16,34 @@ final class MigrationsAndAccessTest extends DatabaseTestCase
         $this->assertSame([], $runner->migrate());
     }
 
+    public function testOwnSchemaHasNoConflicts(): void
+    {
+        $runner = new MigrationRunner(static::$db, dirname(__DIR__, 2) . '/database/migrations');
+        $this->assertSame([], $runner->conflictingTables());
+    }
+
+    public function testDetectsTablesFromAnotherApplication(): void
+    {
+        // BD compartida con otra app (p. ej. Prisma): mismos nombres, ids VARCHAR y otras columnas
+        $name = getenv('TEST_DB_NAME') . '_foreign';
+        static::$db->exec("DROP DATABASE IF EXISTS `{$name}`");
+        static::$db->exec("CREATE DATABASE `{$name}`");
+        try {
+            static::$db->exec("CREATE TABLE `{$name}`.users (id VARCHAR(191) PRIMARY KEY, email VARCHAR(191), passwordHash VARCHAR(191))");
+            static::$db->exec("CREATE TABLE `{$name}`.projects (id VARCHAR(191) PRIMARY KEY, name VARCHAR(191), user_id VARCHAR(191))");
+            static::$db->exec("USE `{$name}`");
+
+            $conflicts = (new MigrationRunner(static::$db, dirname(__DIR__, 2) . '/database/migrations'))->conflictingTables();
+
+            $this->assertSame(['users', 'projects'], array_keys($conflicts));
+            $this->assertStringContainsString('password', $conflicts['users']);
+            $this->assertStringContainsString('varchar', $conflicts['projects']);
+        } finally {
+            static::$db->exec("USE `" . getenv('TEST_DB_NAME') . "`");
+            static::$db->exec("DROP DATABASE IF EXISTS `{$name}`");
+        }
+    }
+
     public function testSchemaMatchesWhatTheCodeUses(): void
     {
         $columns = static::$db->query("SHOW COLUMNS FROM tasks")->fetchAll(\PDO::FETCH_COLUMN);
@@ -40,7 +68,8 @@ final class MigrationsAndAccessTest extends DatabaseTestCase
         $repo = new ProjectRepository(static::$db);
 
         $this->assertTrue($repo->canAccess(1, 1, 'admin'));
-        $this->assertTrue($repo->canAccess(999, 1, 'admin'), 'El admin accede a todo');
+        $this->assertTrue($repo->canAccess(2, 1, 'admin'), 'El admin accede a todo lo de su agencia');
+        $this->assertFalse($repo->canAccess(999, 1, 'admin'));
         $this->assertTrue($repo->canAccess(1, 3, 'colaborador'));
         $this->assertTrue($repo->canAccess(1, 4, 'cliente'));
         $this->assertFalse($repo->canAccess(2, 4, 'cliente'), 'El cliente solo ve proyectos vinculados');

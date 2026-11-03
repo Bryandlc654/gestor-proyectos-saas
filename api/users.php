@@ -20,6 +20,25 @@ if (!verify_csrf($csrf)) {
     exit;
 }
 
+// Toda la gestión de usuarios ocurre dentro de la agencia del administrador
+$agencyId = currentAgencyId();
+$agencies = agencyRepository();
+
+// Responde 404 si el usuario objetivo no pertenece a la agencia (no se revela si existe en otra)
+$requireAgencyUser = function (int $targetUserId) use ($agencies, $agencyId): void {
+    if ($targetUserId <= 0 || !$agencies->userBelongs($targetUserId, $agencyId)) {
+        http_response_code(404);
+        echo json_encode(['success' => false, 'message' => 'Usuario no encontrado']);
+        exit;
+    }
+};
+
+// Solo ids de proyectos de la propia agencia
+$agencyProjectIds = function ($projectIds) use ($agencies, $agencyId): array {
+    $ids = array_unique(array_filter(array_map('intval', is_array($projectIds) ? $projectIds : [])));
+    return array_values(array_filter($ids, fn(int $id) => $agencies->projectBelongs($id, $agencyId)));
+};
+
 switch ($action) {
     // 1. Listar usuarios con sus roles y proyectos asociados (Solo Admin)
     case 'list':
@@ -30,21 +49,24 @@ switch ($action) {
         }
 
         // Obtener usuarios y agrupar los proyectos a los que están asignados
-        $stmt = $db->query("
-            SELECT 
+        $stmt = $db->prepare("
+            SELECT
                 u.id, u.name, u.email, u.role, u.created_at,
                 GROUP_CONCAT(p.id ORDER BY p.name SEPARATOR ',') as project_ids,
                 GROUP_CONCAT(p.name ORDER BY p.name SEPARATOR '||') as project_names
             FROM users u
             LEFT JOIN project_members pm ON u.id = pm.user_id
-            LEFT JOIN projects p ON pm.project_id = p.id
+            LEFT JOIN projects p ON pm.project_id = p.id AND p.agency_id = u.agency_id
+            WHERE u.agency_id = ?
             GROUP BY u.id
             ORDER BY u.id ASC
         ");
+        $stmt->execute([$agencyId]);
         $users = $stmt->fetchAll();
 
-        // Obtener lista completa de proyectos para selección
-        $stmtProjects = $db->query("SELECT id, name, color FROM projects ORDER BY name ASC");
+        // Proyectos de la agencia para selección
+        $stmtProjects = $db->prepare("SELECT id, name, color FROM projects WHERE agency_id = ? ORDER BY name ASC");
+        $stmtProjects->execute([$agencyId]);
         $allProjects = $stmtProjects->fetchAll();
 
         $data = array_map(function($u) {
@@ -66,7 +88,7 @@ switch ($action) {
         }, $users);
 
         echo json_encode([
-            'success'      => true, 
+            'success'      => true,
             'users'        => $data,
             'all_projects' => $allProjects
         ]);
@@ -84,7 +106,7 @@ switch ($action) {
         $email = trim($_POST['email'] ?? '');
         $password = $_POST['password'] ?? '';
         $role = $_POST['role'] ?? 'colaborador';
-        $projectIds = $_POST['project_ids'] ?? [];
+        $projectIds = $agencyProjectIds($_POST['project_ids'] ?? []);
 
         if (empty($name)) {
             echo json_encode(['success' => false, 'message' => 'El nombre completo es obligatorio']);
@@ -119,14 +141,14 @@ switch ($action) {
         $db->beginTransaction();
         try {
             $stmtInsert = $db->prepare("
-                INSERT INTO users (name, email, password, role)
-                VALUES (?, ?, ?, ?)
+                INSERT INTO users (agency_id, name, email, password, role)
+                VALUES (?, ?, ?, ?, ?)
             ");
-            $stmtInsert->execute([$name, $email, $hashedPassword, $role]);
+            $stmtInsert->execute([$agencyId, $name, $email, $hashedPassword, $role]);
             $newUserId = (int)$db->lastInsertId();
 
             // Asignar a los proyectos seleccionados si se enviaron
-            if (!empty($projectIds) && is_array($projectIds)) {
+            if (!empty($projectIds)) {
                 $stmtMember = $db->prepare("
                     INSERT INTO project_members (project_id, user_id, role)
                     VALUES (?, ?, ?)
@@ -143,7 +165,7 @@ switch ($action) {
 
             $db->commit();
             echo json_encode([
-                'success' => true, 
+                'success' => true,
                 'message' => 'Usuario / Cliente creado exitosamente',
                 'user_id' => $newUserId
             ]);
@@ -164,12 +186,8 @@ switch ($action) {
         }
 
         $targetUserId = (int)($_POST['target_user_id'] ?? 0);
-        $projectIds = $_POST['project_ids'] ?? [];
-
-        if ($targetUserId <= 0) {
-            echo json_encode(['success' => false, 'message' => 'Usuario inválido']);
-            exit;
-        }
+        $requireAgencyUser($targetUserId);
+        $projectIds = $agencyProjectIds($_POST['project_ids'] ?? []);
 
         // Obtener el rol del usuario para asignarle el rol correspondiente en project_members
         $stmtUser = $db->prepare("SELECT role FROM users WHERE id = ?");
@@ -186,12 +204,12 @@ switch ($action) {
 
         $db->beginTransaction();
         try {
-            // Eliminar asignaciones anteriores
-            $stmtDel = $db->prepare("DELETE FROM project_members WHERE user_id = ?");
-            $stmtDel->execute([$targetUserId]);
+            // Eliminar asignaciones anteriores en proyectos de esta agencia
+            $stmtDel = $db->prepare("DELETE FROM project_members WHERE user_id = ? AND project_id IN (SELECT id FROM projects WHERE agency_id = ?)");
+            $stmtDel->execute([$targetUserId, $agencyId]);
 
             // Insertar nuevas asignaciones
-            if (!empty($projectIds) && is_array($projectIds)) {
+            if (!empty($projectIds)) {
                 $stmtIns = $db->prepare("INSERT INTO project_members (project_id, user_id, role) VALUES (?, ?, ?)");
                 foreach ($projectIds as $pId) {
                     $pId = (int)$pId;
@@ -227,13 +245,22 @@ switch ($action) {
             exit;
         }
 
-        if ($targetUserId <= 0) {
-            echo json_encode(['success' => false, 'message' => 'Usuario no válido']);
-            exit;
+        $requireAgencyUser($targetUserId);
+
+        // La agencia debe conservar al menos un administrador
+        if ($newRole !== 'admin') {
+            $stmtAdmins = $db->prepare("SELECT COUNT(*) FROM users WHERE agency_id = ? AND role = 'admin' AND id <> ?");
+            $stmtAdmins->execute([$agencyId, $targetUserId]);
+            $stmtWasAdmin = $db->prepare("SELECT role = 'admin' FROM users WHERE id = ?");
+            $stmtWasAdmin->execute([$targetUserId]);
+            if ($stmtWasAdmin->fetchColumn() && (int)$stmtAdmins->fetchColumn() === 0) {
+                echo json_encode(['success' => false, 'message' => 'La agencia debe tener al menos un administrador']);
+                exit;
+            }
         }
 
-        $stmt = $db->prepare("UPDATE users SET role = ? WHERE id = ?");
-        $stmt->execute([$newRole, $targetUserId]);
+        $stmt = $db->prepare("UPDATE users SET role = ? WHERE id = ? AND agency_id = ?");
+        $stmt->execute([$newRole, $targetUserId, $agencyId]);
 
         // Sincronizar también su rol en project_members si existe
         $memberRole = ($newRole === 'cliente') ? 'cliente' : (($newRole === 'project_manager') ? 'project_manager' : 'colaborador');
@@ -241,7 +268,7 @@ switch ($action) {
         $stmtSync->execute([$memberRole, $targetUserId]);
 
         // Si el admin se modificó a sí mismo, sincronizar su sesión
-        if ($targetUserId === $user['id']) {
+        if ($targetUserId === (int)$user['id']) {
             $_SESSION['user_role'] = $newRole;
         }
 
@@ -263,20 +290,79 @@ switch ($action) {
 
         $targetUserId = (int)($_POST['target_user_id'] ?? 0);
 
-        if ($targetUserId <= 0) {
-            echo json_encode(['success' => false, 'message' => 'Usuario no válido']);
-            exit;
-        }
+        $requireAgencyUser($targetUserId);
 
-        if ($targetUserId === $user['id']) {
+        if ($targetUserId === (int)$user['id']) {
             echo json_encode(['success' => false, 'message' => 'No puedes eliminar tu propia cuenta de administrador']);
             exit;
         }
 
-        $stmtDel = $db->prepare("DELETE FROM users WHERE id = ?");
-        $stmtDel->execute([$targetUserId]);
+        $stmtDel = $db->prepare("DELETE FROM users WHERE id = ? AND agency_id = ?");
+        $stmtDel->execute([$targetUserId, $agencyId]);
 
         echo json_encode(['success' => true, 'message' => 'Usuario eliminado correctamente']);
+        exit;
+
+    // 6. Invitar por enlace (Solo Admin): el token en claro solo se devuelve aquí, una vez
+    case 'create_invitation':
+        if (!isAdmin()) {
+            http_response_code(403);
+            echo json_encode(['success' => false, 'message' => 'Acción reservada exclusivamente para administradores']);
+            exit;
+        }
+
+        $email = mb_strtolower(trim($_POST['email'] ?? ''));
+        $role = $_POST['role'] ?? '';
+
+        if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            echo json_encode(['success' => false, 'message' => 'El correo electrónico no tiene un formato válido']);
+            exit;
+        }
+        if (!in_array($role, ['admin', 'project_manager', 'colaborador', 'cliente'], true)) {
+            echo json_encode(['success' => false, 'message' => 'Rol no válido']);
+            exit;
+        }
+        $stmtCheck = $db->prepare("SELECT 1 FROM users WHERE email = ?");
+        $stmtCheck->execute([$email]);
+        if ($stmtCheck->fetchColumn()) {
+            echo json_encode(['success' => false, 'message' => 'Ese correo ya tiene una cuenta en la plataforma']);
+            exit;
+        }
+
+        $token = invitationRepository()->create($agencyId, $email, $role, (int)$user['id']);
+
+        echo json_encode([
+            'success' => true,
+            'message' => 'Invitación creada. Copia el enlace y envíaselo: solo se muestra esta vez.',
+            'invite_path' => 'invite.php?token=' . $token,
+            'expires_days' => \App\Repository\InvitationRepository::TTL_DAYS,
+        ]);
+        exit;
+
+    // 7. Invitaciones pendientes de la agencia (Solo Admin)
+    case 'list_invitations':
+        if (!isAdmin()) {
+            http_response_code(403);
+            echo json_encode(['success' => false, 'message' => 'Acción reservada exclusivamente para administradores']);
+            exit;
+        }
+
+        echo json_encode(['success' => true, 'data' => invitationRepository()->pending($agencyId)]);
+        exit;
+
+    // 8. Revocar una invitación pendiente (Solo Admin)
+    case 'revoke_invitation':
+        if (!isAdmin()) {
+            http_response_code(403);
+            echo json_encode(['success' => false, 'message' => 'Acción reservada exclusivamente para administradores']);
+            exit;
+        }
+
+        $revoked = invitationRepository()->revoke((int)($_POST['invitation_id'] ?? 0), $agencyId);
+
+        echo json_encode($revoked
+            ? ['success' => true, 'message' => 'Invitación revocada']
+            : ['success' => false, 'message' => 'Invitación no encontrada']);
         exit;
 
     default:

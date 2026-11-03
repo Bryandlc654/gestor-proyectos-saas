@@ -9,8 +9,9 @@ if (isLoggedIn()) {
 
 $error = '';
 $email = '';
-$appLogo = getAppSetting('app_logo', '');
-$appName = getAppSetting('app_name', 'FlowTasks');
+// Antes de iniciar sesión no hay agencia: se muestra la marca de la plataforma
+$appLogo = '';
+$appName = 'FlowTasks';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $email = trim($_POST['email'] ?? '');
@@ -25,18 +26,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $error = 'Demasiados intentos fallidos. Espera unos minutos antes de volver a intentarlo.';
     } else {
         $db = getDB();
-        $stmt = $db->prepare("SELECT id, name, email, role, password FROM users WHERE email = ? LIMIT 1");
+        $stmt = $db->prepare("SELECT id, agency_id, name, email, role, password FROM users WHERE email = ? LIMIT 1");
         $stmt->execute([$email]);
         $user = $stmt->fetch();
 
         if ($user && password_verify($password, $user['password'])) {
             clearLoginAttempts($email);
-            // Regenerar ID de sesión para prevenir Session Fixation
-            session_regenerate_id(true);
-            $_SESSION['user_id'] = $user['id'];
-            $_SESSION['user_name'] = $user['name'];
-            $_SESSION['user_email'] = $user['email'];
-            $_SESSION['user_role'] = $user['role'] ?? 'colaborador';
+            // Regenera el ID de sesión (previene Session Fixation) y guarda usuario y agencia
+            startUserSession($user);
 
             setFlash('success', '¡Bienvenido de vuelta, ' . $user['name'] . '!');
             header('Location: dashboard.php');

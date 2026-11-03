@@ -18,8 +18,10 @@ $db = getDB();
 $search = trim($_GET['search'] ?? '');
 $filterRole = trim($_GET['role'] ?? 'todos');
 
-$where = [];
-$params = [];
+// Solo usuarios de la propia agencia
+$agencyId = currentAgencyId();
+$where = ["u.agency_id = ?"];
+$params = [$agencyId];
 
 if ($filterRole !== 'todos' && in_array($filterRole, ['admin', 'project_manager', 'colaborador', 'cliente'])) {
     $where[] = "u.role = ?";
@@ -32,7 +34,7 @@ if (!empty($search)) {
     $params[] = "%{$search}%";
 }
 
-$whereSql = !empty($where) ? "WHERE " . implode(" AND ", $where) : "";
+$whereSql = "WHERE " . implode(" AND ", $where);
 
 // Total filtrado para la paginación
 $stmtTotal = $db->prepare("SELECT COUNT(*) FROM users u $whereSql");
@@ -41,17 +43,17 @@ $pagination = paginate((int)$stmtTotal->fetchColumn(), 50);
 
 // Consulta de usuarios con sus proyectos vinculados (paginada)
 $query = "
-    SELECT 
-        u.id, 
-        u.name, 
-        u.email, 
-        u.role, 
+    SELECT
+        u.id,
+        u.name,
+        u.email,
+        u.role,
         u.created_at,
         GROUP_CONCAT(p.id ORDER BY p.name SEPARATOR ',') as project_ids,
         GROUP_CONCAT(p.name ORDER BY p.name SEPARATOR '||') as project_names
     FROM users u
     LEFT JOIN project_members pm ON u.id = pm.user_id
-    LEFT JOIN projects p ON pm.project_id = p.id
+    LEFT JOIN projects p ON pm.project_id = p.id AND p.agency_id = u.agency_id
     $whereSql
     GROUP BY u.id
     ORDER BY u.id ASC
@@ -62,18 +64,26 @@ $stmtUsers->execute($params);
 $usersList = $stmtUsers->fetchAll();
 
 // Estadísticas de usuarios
-$statsCounts = $db->query("
-    SELECT 
+$stmtStats = $db->prepare("
+    SELECT
         COUNT(*) as total_users,
         SUM(CASE WHEN role = 'admin' THEN 1 ELSE 0 END) as count_admin,
         SUM(CASE WHEN role = 'project_manager' THEN 1 ELSE 0 END) as count_pm,
         SUM(CASE WHEN role = 'colaborador' THEN 1 ELSE 0 END) as count_collab,
         SUM(CASE WHEN role = 'cliente' THEN 1 ELSE 0 END) as count_client
     FROM users
-")->fetch();
+    WHERE agency_id = ?
+");
+$stmtStats->execute([$agencyId]);
+$statsCounts = $stmtStats->fetch();
 
-// Todos los proyectos disponibles para asignar
-$allProjects = $db->query("SELECT id, name, color FROM projects ORDER BY name ASC")->fetchAll();
+// Proyectos de la agencia disponibles para asignar
+$stmtProjects = $db->prepare("SELECT id, name, color FROM projects WHERE agency_id = ? ORDER BY name ASC");
+$stmtProjects->execute([$agencyId]);
+$allProjects = $stmtProjects->fetchAll();
+
+// Invitaciones por enlace aún no aceptadas
+$pendingInvitations = invitationRepository()->pending($agencyId);
 
 require_once __DIR__ . '/includes/header.php';
 require_once __DIR__ . '/includes/sidebar.php';
@@ -93,6 +103,10 @@ require_once __DIR__ . '/includes/sidebar.php';
         </div>
 
         <div class="flex items-center gap-3">
+            <button onclick="toggleInviteCard()" class="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 font-semibold text-xs sm:text-sm transition">
+                <i data-lucide="send" class="w-4 h-4"></i>
+                <span>Invitar<?= !empty($pendingInvitations) ? ' (' . count($pendingInvitations) . ')' : '' ?></span>
+            </button>
             <button onclick="toggleNewUserForm()" class="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-brand-600 hover:bg-brand-700 text-white font-semibold text-xs sm:text-sm shadow-sm shadow-brand-500/25 transition">
                 <i data-lucide="user-plus" class="w-4 h-4"></i>
                 <span>Nuevo Usuario</span>
@@ -147,6 +161,69 @@ require_once __DIR__ . '/includes/sidebar.php';
                 <div class="text-2xl sm:text-[28px] leading-none font-semibold tracking-tight text-slate-900"><?= (int)$statsCounts['count_client'] ?></div>
                 <span class="text-xs text-slate-400 font-medium">acceso restringido a sus proyectos</span>
             </div>
+        </div>
+
+        <!-- Invitar por enlace -->
+        <div id="invite-card" class="hidden bg-white rounded-3xl border border-brand-200/80 shadow-sm p-6 sm:p-8 space-y-5">
+            <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+                <div class="flex items-center gap-2.5">
+                    <div class="w-9 h-9 rounded-xl bg-brand-50 text-brand-700 flex items-center justify-center font-bold">
+                        <i data-lucide="send" class="w-4 h-4"></i>
+                    </div>
+                    <div>
+                        <h3 class="font-display font-semibold text-slate-900 text-base">Invitar por enlace</h3>
+                        <p class="text-xs text-slate-400">La persona crea su propia contraseña. El enlace caduca en 7 días y sirve una sola vez.</p>
+                    </div>
+                </div>
+                <button type="button" onclick="toggleInviteCard()" class="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+
+            <form id="invite-form" onsubmit="handleCreateInvitation(event)" class="grid grid-cols-1 sm:grid-cols-[1fr_1fr_auto] gap-4 items-end">
+                <div>
+                    <label class="block text-xs font-medium text-slate-700 mb-1.5">Correo Electrónico *</label>
+                    <input type="email" name="email" required placeholder="persona@empresa.com" class="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white focus:ring-1 focus:ring-brand-500">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-slate-700 mb-1.5">Rol *</label>
+                    <select name="role" class="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white focus:ring-1 focus:ring-brand-500 font-medium">
+                            <option value="cliente" selected>Cliente (Solo proyectos asignados y tickets)</option>
+                            <option value="colaborador">Colaborador (Ejecuta tareas asignadas)</option>
+                            <option value="project_manager">Project Manager (Gestiona proyectos)</option>
+                            <option value="admin">Administrador (Control total del sistema)</option>
+                    </select>
+                </div>
+                <button type="submit" id="btn-create-invite" class="px-5 py-2.5 rounded-xl text-xs font-semibold text-white bg-brand-600 hover:bg-brand-700 shadow-2xs transition">Generar enlace</button>
+            </form>
+
+            <div id="invite-result" class="hidden p-4 rounded-2xl bg-emerald-50/60 border border-emerald-100 space-y-2">
+                <p class="text-xs font-medium text-emerald-800">Enlace listo. Cópialo y envíaselo: por seguridad no se volverá a mostrar.</p>
+                <div class="flex gap-2">
+                    <input type="text" id="invite-link" readonly class="flex-1 min-w-0 text-xs px-3 py-2 rounded-xl border border-emerald-200 bg-white text-slate-700">
+                    <button type="button" onclick="copyInviteLink(this)" class="px-3.5 py-2 rounded-xl text-xs font-semibold text-emerald-800 bg-white border border-emerald-200 hover:bg-emerald-50 transition">Copiar</button>
+                </div>
+            </div>
+
+            <?php if (!empty($pendingInvitations)): ?>
+                <div class="space-y-2">
+                    <h4 class="text-xs font-semibold text-slate-500">Invitaciones pendientes</h4>
+                    <ul class="divide-y divide-slate-100 rounded-2xl border border-slate-200/80">
+                        <?php foreach ($pendingInvitations as $inv): $invBadge = getRoleBadge($inv['role']); ?>
+                            <li class="flex items-center justify-between gap-3 px-4 py-2.5 text-xs">
+                                <div class="min-w-0">
+                                    <span class="font-medium text-slate-800 truncate"><?= e($inv['email']) ?></span>
+                                    <span class="ml-2 px-2 py-0.5 rounded-md <?= $invBadge['class'] ?>"><?= e($invBadge['label']) ?></span>
+                                </div>
+                                <div class="flex items-center gap-3 flex-shrink-0">
+                                    <span class="text-slate-400">caduca <?= formatDate($inv['expires_at']) ?></span>
+                                    <button type="button" onclick="revokeInvitation(<?= (int)$inv['id'] ?>)" class="text-rose-600 hover:underline font-medium">Revocar</button>
+                                </div>
+                            </li>
+                        <?php endforeach; ?>
+                    </ul>
+                </div>
+            <?php endif; ?>
         </div>
 
         <!-- Formulario Desplegable para Crear Nuevo Usuario -->
@@ -268,7 +345,7 @@ require_once __DIR__ . '/includes/sidebar.php';
                     </thead>
                     <tbody class="divide-y divide-slate-100">
                         <?php foreach ($usersList as $u): ?>
-                            <?php 
+                            <?php
                                 $rBadge = getRoleBadge($u['role']);
                                 $pIds = !empty($u['project_ids']) ? explode(',', $u['project_ids']) : [];
                                 $pNames = !empty($u['project_names']) ? explode('||', $u['project_names']) : [];
@@ -413,6 +490,75 @@ require_once __DIR__ . '/includes/sidebar.php';
 </div>
 
 <script>
+function toggleInviteCard() {
+    const card = document.getElementById('invite-card');
+    card.classList.toggle('hidden');
+    if (!card.classList.contains('hidden')) {
+        card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+}
+
+async function handleCreateInvitation(e) {
+    e.preventDefault();
+    const btn = document.getElementById('btn-create-invite');
+    btn.disabled = true;
+
+    const formData = new FormData(e.target);
+    formData.append('action', 'create_invitation');
+    formData.append('csrf_token', '<?= csrf_token() ?>');
+
+    try {
+        const res = await fetch('api/users.php', { method: 'POST', body: formData });
+        const data = await res.json();
+        if (data.success) {
+            document.getElementById('invite-link').value = new URL(data.invite_path, window.location.href).href;
+            document.getElementById('invite-result').classList.remove('hidden');
+            e.target.reset();
+        } else {
+            alert(data.message || 'Error al crear la invitación');
+        }
+    } catch (err) {
+        alert('Error de conexión con el servidor');
+    } finally {
+        btn.disabled = false;
+    }
+}
+
+async function copyInviteLink(btn) {
+    const input = document.getElementById('invite-link');
+    try {
+        await navigator.clipboard.writeText(input.value);
+    } catch (err) {
+        input.select();
+        document.execCommand('copy');
+    }
+    btn.innerText = 'Copiado';
+    setTimeout(() => { btn.innerText = 'Copiar'; }, 2000);
+}
+
+async function revokeInvitation(invitationId) {
+    if (!confirm('¿Revocar esta invitación? El enlace dejará de funcionar.')) {
+        return;
+    }
+
+    const formData = new FormData();
+    formData.append('action', 'revoke_invitation');
+    formData.append('csrf_token', '<?= csrf_token() ?>');
+    formData.append('invitation_id', invitationId);
+
+    try {
+        const res = await fetch('api/users.php', { method: 'POST', body: formData });
+        const data = await res.json();
+        if (data.success) {
+            window.location.reload();
+        } else {
+            alert(data.message || 'Error al revocar la invitación');
+        }
+    } catch (err) {
+        alert('Error de conexión');
+    }
+}
+
 function toggleNewUserForm() {
     const card = document.getElementById('new-user-form-card');
     if (card) {
