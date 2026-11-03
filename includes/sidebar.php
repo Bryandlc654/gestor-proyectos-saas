@@ -26,6 +26,7 @@ $mainNav = [
     ['tasks.php', 'check-square', 'Tareas', true],
     ['invoices.php', 'receipt', 'Facturación', in_array($userRole, ['admin', 'project_manager'])],
     ['users.php', 'users', 'Usuarios y roles', isAdmin()],
+    ['connections.php', 'link', 'Agencias conectadas', isAdmin()],
     ['settings.php', 'settings', 'Configuración', isAdmin()],
 ];
 ?>
