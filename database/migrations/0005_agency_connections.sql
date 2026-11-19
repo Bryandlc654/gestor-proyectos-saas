@@ -15,9 +15,11 @@ CREATE TABLE IF NOT EXISTS `agency_connections` (
     `requested_by` INT NULL,
     `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     `accepted_at` DATETIME NULL,
-    -- Una sola conexión por pareja de agencias, la pida quien la pida
-    `pair_low` INT AS (LEAST(`requester_agency_id`, `target_agency_id`)) STORED,
-    `pair_high` INT AS (GREATEST(`requester_agency_id`, `target_agency_id`)) STORED,
+    -- Una sola conexión por pareja de agencias, la pida quien la pida.
+    -- VIRTUAL (no STORED): MySQL 8 no permite claves foráneas con ON DELETE CASCADE sobre columnas
+    -- base de una columna generada STORED, y aquí requester/target_agency_id necesitan el CASCADE.
+    `pair_low` INT AS (LEAST(`requester_agency_id`, `target_agency_id`)) VIRTUAL,
+    `pair_high` INT AS (GREATEST(`requester_agency_id`, `target_agency_id`)) VIRTUAL,
     UNIQUE KEY `uq_connection_pair` (`pair_low`, `pair_high`),
     INDEX `idx_connection_target` (`target_agency_id`),
     CONSTRAINT `fk_connection_requester` FOREIGN KEY (`requester_agency_id`) REFERENCES `agencies` (`id`) ON DELETE CASCADE,

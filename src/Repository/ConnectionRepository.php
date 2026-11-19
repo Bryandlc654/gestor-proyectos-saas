@@ -64,14 +64,43 @@ final class ConnectionRepository
         return $stmt->rowCount() > 0;
     }
 
-    /** Rechazar, cancelar o desconectar: cualquiera de las dos agencias puede hacerlo. */
+    /**
+     * Rechazar, cancelar o desconectar: cualquiera de las dos agencias puede hacerlo.
+     * Al desconectar, se dejan de compartir los proyectos entre ambas agencias.
+     */
     public function remove(int $connectionId, int $agencyId): bool
     {
         $stmt = $this->db->prepare("
-            DELETE FROM agency_connections WHERE id = ? AND (requester_agency_id = ? OR target_agency_id = ?)
+            SELECT requester_agency_id, target_agency_id FROM agency_connections
+            WHERE id = ? AND (requester_agency_id = ? OR target_agency_id = ?)
         ");
         $stmt->execute([$connectionId, $agencyId, $agencyId]);
-        return $stmt->rowCount() > 0;
+        $connection = $stmt->fetch(PDO::FETCH_ASSOC);
+        if (!$connection) {
+            return false;
+        }
+
+        $requester = (int)$connection['requester_agency_id'];
+        $target = (int)$connection['target_agency_id'];
+
+        $this->db->beginTransaction();
+        try {
+            // Los proyectos compartidos en cualquier sentido dejan de estarlo.
+            $this->db->prepare("
+                DELETE FROM project_shares
+                WHERE (owner_agency_id = ? AND guest_agency_id = ?)
+                   OR (owner_agency_id = ? AND guest_agency_id = ?)
+            ")->execute([$requester, $target, $target, $requester]);
+
+            $deleted = $this->db->prepare("DELETE FROM agency_connections WHERE id = ?");
+            $deleted->execute([$connectionId]);
+            $this->db->commit();
+        } catch (\Throwable $e) {
+            $this->db->rollBack();
+            throw $e;
+        }
+
+        return $deleted->rowCount() > 0;
     }
 
     public function areConnected(int $agencyA, int $agencyB): bool

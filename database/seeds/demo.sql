@@ -3,9 +3,9 @@
 
 -- Dos agencias independientes: cada una solo ve sus propios usuarios y proyectos
 -- Códigos de conexión fijos para poder probar la conexión entre agencias
-INSERT INTO `agencies` (`id`, `name`, `connect_code`) VALUES
-(1, 'Agencia Demo', 'AGDM-2345'),
-(2, 'Estudio Norte', 'NRTE-6789')
+INSERT INTO `agencies` (`id`, `name`, `connect_code`, `slug`) VALUES
+(1, 'Agencia Demo', 'AGDM-2345', 'agencia-demo'),
+(2, 'Estudio Norte', 'NRTE-6789', 'estudio-norte')
 ON DUPLICATE KEY UPDATE `id`=`id`;
 
 INSERT INTO `users` (`id`, `agency_id`, `name`, `email`, `role`, `password`) VALUES
@@ -71,7 +71,15 @@ INSERT INTO `tasks` (`project_id`, `title`, `description`, `priority`, `status`,
 -- Presupuestos y facturas de ejemplo
 UPDATE `projects` SET `budget` = 4500.00, `currency` = 'USD' WHERE `id` = 1;
 UPDATE `projects` SET `budget` = 8000.00, `currency` = 'USD' WHERE `id` = 2;
-INSERT IGNORE INTO `invoices` (`project_id`, `invoice_number`, `concept`, `amount`, `currency`, `status`, `due_date`, `paid_at`, `notes`) VALUES
-(1, 'INV-2026-001', 'Anticipo inicial 50% - Rediseño E-commerce', 2250.00, 'USD', 'pagada', DATE_ADD(CURRENT_DATE, INTERVAL -15 DAY), DATE_ADD(CURRENT_DATE, INTERVAL -16 DAY), 'Pagado mediante transferencia bancaria'),
-(1, 'INV-2026-002', 'Hito 2: Prototipado y Maquetación Frontend', 1250.00, 'USD', 'pendiente', DATE_ADD(CURRENT_DATE, INTERVAL 15 DAY), NULL, 'Pendiente de cobro al validar maquetas'),
-(2, 'INV-2026-001', 'Hito inicial - Arquitectura y Base de Datos', 3000.00, 'USD', 'pendiente', DATE_ADD(CURRENT_DATE, INTERVAL 30 DAY), NULL, 'Factura por cobrar');
+-- agency_id y paid_amount son obligatorios desde las migraciones 0033 y 0044 (cobros y exportaciones filtran por ellos)
+INSERT IGNORE INTO `invoices` (`project_id`, `agency_id`, `invoice_number`, `concept`, `amount`, `paid_amount`, `currency`, `status`, `due_date`, `paid_at`, `notes`) VALUES
+(1, 1, 'INV-2026-001', 'Anticipo inicial 50% - Rediseño E-commerce', 2250.00, 2250.00, 'USD', 'pagada', DATE_ADD(CURRENT_DATE, INTERVAL -15 DAY), DATE_ADD(CURRENT_DATE, INTERVAL -16 DAY), 'Pagado mediante transferencia bancaria'),
+(1, 1, 'INV-2026-002', 'Hito 2: Prototipado y Maquetación Frontend', 1250.00, 0.00, 'USD', 'pendiente', DATE_ADD(CURRENT_DATE, INTERVAL 15 DAY), NULL, 'Pendiente de cobro al validar maquetas'),
+(2, 1, 'INV-2026-001', 'Hito inicial - Arquitectura y Base de Datos', 3000.00, 0.00, 'USD', 'pendiente', DATE_ADD(CURRENT_DATE, INTERVAL 30 DAY), NULL, 'Factura por cobrar');
+
+-- Historial del cobro de la factura pagada (como lo crea la migración 0044)
+INSERT INTO `invoice_payments` (`invoice_id`, `agency_id`, `amount`, `currency`, `paid_at`, `notes`)
+SELECT i.`id`, 1, i.`amount`, i.`currency`, i.`paid_at`, 'Cobro de demostración'
+FROM `invoices` i
+WHERE i.`project_id` = 1 AND i.`invoice_number` = 'INV-2026-001'
+  AND NOT EXISTS (SELECT 1 FROM `invoice_payments` ip WHERE ip.`invoice_id` = i.`id`);

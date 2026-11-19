@@ -47,7 +47,7 @@ final class AccountService
         [$name, $email] = $this->validatePerson($name, $invitation['email'], $password);
 
         return $this->transaction(function () use ($invitation, $name, $email, $password) {
-            $user = $this->insertUser((int)$invitation['agency_id'], $name, $email, $password, $invitation['role']);
+            $user = $this->insertUser((int)$invitation['agency_id'], $name, $email, $password, $invitation['role'], true);
             $this->invitations->markAccepted((int)$invitation['id']);
             return $user;
         });
@@ -75,9 +75,10 @@ final class AccountService
         return [$name, $email];
     }
 
-    private function insertUser(int $agencyId, string $name, string $email, string $password, string $role): array
+    private function insertUser(int $agencyId, string $name, string $email, string $password, string $role, bool $emailVerified = false): array
     {
-        $this->db->prepare("INSERT INTO users (agency_id, name, email, role, password) VALUES (?, ?, ?, ?, ?)")
+        // Las invitaciones ya demuestran que el correo existe; el alta propia empieza sin verificar.
+        $this->db->prepare("INSERT INTO users (agency_id, name, email, role, password, email_verified_at) VALUES (?, ?, ?, ?, ?, " . ($emailVerified ? 'NOW()' : 'NULL') . ")")
             ->execute([$agencyId, $name, $email, $role, password_hash($password, PASSWORD_DEFAULT)]);
         return [
             'id' => (int)$this->db->lastInsertId(),

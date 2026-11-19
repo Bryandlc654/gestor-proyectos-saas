@@ -1,4 +1,4 @@
--- 0001_baseline: esquema completo de FlowTasks al inicio de las migraciones versionadas.
+-- 0001_baseline: esquema completo de Vertice al inicio de las migraciones versionadas.
 -- Todo usa IF NOT EXISTS, por lo que es seguro aplicarlo sobre una base de datos ya existente.
 
 CREATE TABLE IF NOT EXISTS `schema_migrations` (
@@ -201,6 +201,6 @@ CREATE TABLE IF NOT EXISTS `app_settings` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 INSERT IGNORE INTO `app_settings` (`setting_key`, `setting_value`) VALUES
-    ('app_name', 'FlowTasks'),
+    ('app_name', 'Vertice'),
     ('app_logo', ''),
     ('app_logo_type', 'icon');

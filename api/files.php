@@ -21,9 +21,14 @@ if (($_GET['action'] ?? '') === 'download') {
     $stmt->execute([$fileId]);
     $file = $stmt->fetch();
 
-    // Un cliente solo puede descargar sus propios adjuntos
-    if (!$file
-        || !canAccessProject($file['project_id'], $user['id'], $user['role'])
+    // Un cliente solo puede descargar sus propios adjuntos.
+    // Los documentos de factura solo los descarga quien gestiona las finanzas del proyecto.
+    $isInvoiceDocument = $file !== false && !empty($file['invoice_id']);
+    $allowed = $file !== false && ($isInvoiceDocument
+        ? canManageProject((int)$file['project_id'], (int)$user['id'], $user['role'])
+        : canAccessProject($file['project_id'], $user['id'], $user['role']));
+
+    if (!$allowed
         || ($user['role'] === 'cliente' && $file['user_id'] != $user['id'])) {
         http_response_code(404);
         exit('Archivo no encontrado o acceso denegado.');
@@ -52,6 +57,12 @@ if (($_GET['action'] ?? '') === 'download') {
     readfile($filePath);
     exit;
 }
+if (requestExceededPostLimit()) {
+    http_response_code(413);
+    echo json_encode(['success' => false, 'message' => 'El archivo es demasiado grande para el servidor.']);
+    exit;
+}
+
 $csrf = $_POST['csrf_token'] ?? '';
 $action = $_POST['action'] ?? '';
 $projectId = (int)($_POST['project_id'] ?? 0);
@@ -69,8 +80,18 @@ if (!canAccessProject($projectId, $user['id'], $user['role'])) {
     exit;
 }
 
+// Subir archivos: equipo dueño y agencias invitadas con acceso de colaboración.
+// Gestionar (borrar) archivos de otros: solo el equipo interno de la agencia dueña.
+$canUploadFiles = canUploadProjectFiles($projectId, (int)$user['id'], $user['role']);
+$canManageAllFiles = canManageProjectStructure($projectId, (int)$user['id'], $user['role']);
+
 switch ($action) {
     case 'upload':
+        if (!$canUploadFiles) {
+            http_response_code(403);
+            echo json_encode(['success' => false, 'message' => 'Tu acceso a este proyecto es de solo lectura']);
+            exit;
+        }
         $folderId = !empty($_POST['folder_id']) ? (int)$_POST['folder_id'] : null;
         $taskId = !empty($_POST['task_id']) ? (int)$_POST['task_id'] : null;
         if ($user['role'] === 'cliente') {
@@ -136,10 +157,16 @@ switch ($action) {
             exit;
         }
 
-        // Si es cliente, solo puede eliminar sus propios adjuntos
-        if ($user['role'] === 'cliente' && $f['user_id'] != $user['id']) {
+        // Fuera del equipo interno dueño, cada agencia solo puede borrar sus propios archivos.
+        $isOwnFile = $f['user_id'] == $user['id'];
+        if (!$isOwnFile && !$canManageAllFiles) {
             http_response_code(403);
             echo json_encode(['success' => false, 'message' => 'Solo puedes eliminar tus propios adjuntos']);
+            exit;
+        }
+        if (!$canUploadFiles && !$canManageAllFiles) {
+            http_response_code(403);
+            echo json_encode(['success' => false, 'message' => 'Tu acceso a este proyecto es de solo lectura']);
             exit;
         }
 

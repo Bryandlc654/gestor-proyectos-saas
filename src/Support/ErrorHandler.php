@@ -70,20 +70,24 @@ final class ErrorHandler
         self::renderPage($title, $message, $detail);
     }
 
-    // Página de error mínima y autónoma (no depende de sesión ni de la base de datos)
+    // Página de error mínima y autónoma: no depende de sesión, base de datos ni hojas de estilo externas
     public static function renderPage(string $title, string $message, ?string $detail = null): void
     {
         $h = [Html::class, 'e'];
+        $css = 'body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:16px;'
+            . 'background:#f8fafc;color:#1e293b;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;-webkit-font-smoothing:antialiased}'
+            . '.card{max-width:32rem;width:100%;background:#fff;border:1px solid #e2e8f0;border-radius:16px;box-shadow:0 1px 2px rgba(15,23,42,.06);padding:28px}'
+            . 'h1{margin:0 0 8px;font-size:18px;font-weight:600;color:#0f172a}p{margin:0;font-size:14px;line-height:1.6;color:#475569}'
+            . 'pre{margin:20px 0 0;background:#0f172a;color:#e2e8f0;padding:16px;border-radius:12px;font-size:12px;overflow-x:auto;white-space:pre-wrap}'
+            . 'a{display:inline-block;margin-top:20px;font-size:13px;font-weight:600;color:#0e66ff;text-decoration:none}';
         echo '<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">'
             . '<meta name="viewport" content="width=device-width, initial-scale=1.0">'
-            . '<title>' . $h($title) . '</title><link rel="stylesheet" href="assets/css/app.css"></head>'
-            . '<body class="bg-slate-50 min-h-screen flex items-center justify-center p-4 font-sans text-slate-800 antialiased">'
-            . '<div class="max-w-lg w-full bg-white rounded-2xl border border-slate-200/70 shadow-sm p-6 sm:p-8">'
-            . '<h1 class="text-lg font-semibold text-slate-900 mb-2">' . $h($title) . '</h1>'
-            . '<p class="text-sm text-slate-600 leading-relaxed">' . $h($message) . '</p>'
-            . ($detail !== null
-                ? '<pre class="mt-5 bg-slate-900 text-slate-200 p-4 rounded-xl text-xs overflow-x-auto whitespace-pre-wrap">' . $h($detail) . '</pre>'
-                : '')
+            . '<title>' . $h($title) . '</title><style>' . $css . '</style></head>'
+            . '<body><div class="card">'
+            . '<h1>' . $h($title) . '</h1>'
+            . '<p>' . $h($message) . '</p>'
+            . ($detail !== null ? '<pre>' . $h($detail) . '</pre>' : '')
+            . '<a href="/app/dashboard">Volver a la aplicación</a>'
             . '</div></body></html>';
     }
 

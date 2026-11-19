@@ -27,6 +27,9 @@ function getDB(): PDO {
 
         try {
             $pdo = new PDO($dsn, DB_USER, DB_PASS, $options);
+            // Misma collation que las tablas (ver migraciones). Sin esto la conexión usa la del servidor
+            // (p. ej. utf8mb4_general_ci en algunos hostings) y MySQL rechaza comparar textos de ambas
+            $pdo->exec("SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci");
         } catch (PDOException $e) {
             if (PHP_SAPI === 'cli') {
                 fwrite(STDERR, 'No se pudo conectar a ' . DB_NAME . ' en ' . DB_HOST . ': ' . $e->getMessage() . "\n");

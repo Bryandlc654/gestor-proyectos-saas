@@ -28,7 +28,7 @@ if (!canAccessProject($projectId, $user['id'], $user['role'])) {
     exit;
 }
 
-if (!canManageAttachments($user['role'])) {
+if (!canManageProjectStructure($projectId, (int)$user['id'], $user['role'])) {
     http_response_code(403);
     echo json_encode(['success' => false, 'message' => 'Los clientes tienen acceso de solo lectura']);
     exit;

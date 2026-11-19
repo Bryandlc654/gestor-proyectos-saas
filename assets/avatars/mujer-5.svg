@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Avatar de mujer 5">
+  <defs><clipPath id="clip"><circle cx="32" cy="32" r="32"/></clipPath></defs>
+  <g clip-path="url(#clip)">
+    <circle cx="32" cy="32" r="32" fill="#ECFDF5"/>
+    <rect x="27" y="38" width="10" height="11" rx="4.5" fill="#D9A066"/>
+    <path d="M6 64c0-12 11.6-21 26-21s26 9 26 21z" fill="#115E59"/>
+    <path d="M20 40c1.5 5 6.2 8 12 8s10.5-3 12-8l4 2c-2 8-8 12-16 12s-14-4-16-12z" fill="#0D9488"/>
+    <circle cx="32" cy="27" r="12.5" fill="#D9A066"/>
+    <path d="M18 30c0-10.5 6.3-16.5 14-16.5S46 19.5 46 30c0 4-1 7.2-2.8 9.6V31c0-6-4.6-9.8-11.2-9.8S20.8 25 20.8 31v8.6C19 37.2 18 34 18 30z" fill="#0D9488"/>
+    <circle cx="27.5" cy="27" r="1.4" fill="#2B2B2B"/>
+    <circle cx="36.5" cy="27" r="1.4" fill="#2B2B2B"/>
+    <path d="M28.5 32.5c1.7 2.1 5.3 2.1 7 0" fill="none" stroke="#9C6438" stroke-width="1.4" stroke-linecap="round"/>
+  </g>
+</svg>

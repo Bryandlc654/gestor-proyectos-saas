@@ -9,6 +9,12 @@ if (!isLoggedIn()) {
     exit;
 }
 
+if (requestExceededPostLimit()) {
+    http_response_code(413);
+    echo json_encode(['success' => false, 'message' => 'La imagen es demasiado grande para el servidor (máximo 10 MB).']);
+    exit;
+}
+
 $user = currentUser();
 $db = getDB();
 $csrf = $_POST['csrf_token'] ?? '';
@@ -27,6 +33,46 @@ if (!canAccessProject($projectId, $user['id'], $user['role'])) {
     http_response_code(403);
     echo json_encode(['success' => false, 'message' => 'Acceso denegado al proyecto']);
     exit;
+}
+
+// Ver y comentar: la agencia invitada solo puede comentar con acceso de colaboración
+if (!canCommentOnProject($projectId, (int)$user['id'], $user['role'])) {
+    http_response_code(403);
+    echo json_encode(['success' => false, 'message' => 'Tu acceso a este proyecto es de solo lectura']);
+    exit;
+}
+
+$canModerateComments = canModerateProjectContent($projectId, (int)$user['id'], $user['role']);
+
+function notifyCommentMentions(string $content, int $projectId, array $author, ?int $taskId): void
+{
+    if (!preg_match_all('/@([A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,})/', $content, $matches)) {
+        return;
+    }
+
+    $emails = array_map('strtolower', array_unique($matches[1]));
+    $users = projectRepository()->mentionableUsers($projectId);
+    $projectName = projectRepository()->name($projectId) ?? 'un proyecto';
+    $taskTitle = null;
+    if ($taskId !== null) {
+        $stmt = getDB()->prepare("SELECT title FROM tasks WHERE id = ? AND project_id = ?");
+        $stmt->execute([$taskId, $projectId]);
+        $taskTitle = $stmt->fetchColumn() ?: null;
+    }
+
+    foreach ($users as $mentioned) {
+        if ($mentioned['id'] === (int)$author['id'] || !in_array(strtolower($mentioned['email']), $emails, true)) {
+            continue;
+        }
+        notificationService()->notifyMention(
+            $mentioned['id'],
+            $mentioned['agency_id'],
+            $author['name'],
+            $projectName,
+            $projectId,
+            $taskTitle
+        );
+    }
 }
 
 // La tarea indicada debe pertenecer al mismo proyecto
@@ -59,7 +105,7 @@ switch ($action) {
             exit;
         }
 
-        if ($comm['user_id'] != $user['id'] && !isAdmin()) {
+        if ($comm['user_id'] != $user['id'] && !$canModerateComments) {
             http_response_code(403);
             echo json_encode(['success' => false, 'message' => 'No tienes permiso para editar este comentario']);
             exit;
@@ -67,6 +113,7 @@ switch ($action) {
 
         $stmtUp = $db->prepare("UPDATE comments SET content = ? WHERE id = ?");
         $stmtUp->execute([$newContent, $commentId]);
+        notifyCommentMentions($newContent, $projectId, $user, $comm['task_id'] !== null ? (int)$comm['task_id'] : null);
 
         echo json_encode([
             'success' => true,
@@ -92,7 +139,7 @@ switch ($action) {
             exit;
         }
 
-        if ($comm['user_id'] != $user['id'] && !isAdmin()) {
+        if ($comm['user_id'] != $user['id'] && !$canModerateComments) {
             http_response_code(403);
             echo json_encode(['success' => false, 'message' => 'No tienes permiso para eliminar este comentario']);
             exit;
@@ -119,7 +166,14 @@ switch ($action) {
 
     case 'create':
     default:
-        $hasImage = isset($_FILES['image']) && $_FILES['image']['error'] === UPLOAD_ERR_OK;
+        $imageError = isset($_FILES['image']) ? (int)$_FILES['image']['error'] : UPLOAD_ERR_NO_FILE;
+        // Si se intentó adjuntar una imagen y falló, avisar en vez de publicar la nota sin ella
+        if ($imageError !== UPLOAD_ERR_OK && $imageError !== UPLOAD_ERR_NO_FILE) {
+            http_response_code(422);
+            echo json_encode(['success' => false, 'message' => uploadErrorMessage($imageError)]);
+            exit;
+        }
+        $hasImage = $imageError === UPLOAD_ERR_OK;
         $parentId = !empty($_POST['parent_id']) ? (int)$_POST['parent_id'] : null;
 
         if (empty($content) && !$hasImage) {
@@ -181,6 +235,7 @@ switch ($action) {
         $stmt = $db->prepare("INSERT INTO comments (project_id, task_id, parent_id, user_id, content, image_path) VALUES (?, ?, ?, ?, ?, ?)");
         $stmt->execute([$projectId, $taskId, $parentId, $user['id'], $content, $imagePath]);
         $commId = (int)$db->lastInsertId();
+        notifyCommentMentions($content, $projectId, $user, $taskId);
 
         $taskTitle = null;
         if ($taskId) {

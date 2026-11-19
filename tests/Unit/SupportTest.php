@@ -39,6 +39,20 @@ final class SupportTest extends TestCase
         $this->assertSame('20 MB', Format::bytes(20 * 1024 * 1024));
     }
 
+    public function testIsIsoDateRequiresARealCalendarDate(): void
+    {
+        $this->assertTrue(Format::isIsoDate('2026-12-31'));
+        $this->assertTrue(Format::isIsoDate('2028-02-29'));
+        $this->assertFalse(Format::isIsoDate('2026-02-29'));
+        $this->assertFalse(Format::isIsoDate('2026-02-31'));
+        $this->assertFalse(Format::isIsoDate('2026-13-45'));
+        $this->assertFalse(Format::isIsoDate('0000-00-00'));
+        $this->assertFalse(Format::isIsoDate('2026-1-5'));
+        $this->assertFalse(Format::isIsoDate('no-es-fecha'));
+        $this->assertFalse(Format::isIsoDate(''));
+        $this->assertFalse(Format::isIsoDate(null));
+    }
+
     public function testFormatDate(): void
     {
         $this->assertSame('Sin fecha', Format::date(null));

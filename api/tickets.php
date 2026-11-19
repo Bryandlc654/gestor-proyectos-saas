@@ -28,8 +28,34 @@ if (!canAccessProject($projectId, $user['id'], $user['role'])) {
     exit;
 }
 
+$stmtWebhookAgency = $db->prepare("SELECT agency_id FROM projects WHERE id = ?");
+$stmtWebhookAgency->execute([$projectId]);
+$webhookAgencyId = (int)$stmtWebhookAgency->fetchColumn();
+
+$fetchTicket = static function (int $ticketId) use ($db): ?array {
+    $stmt = $db->prepare("
+        SELECT t.*, u.name AS author_name
+        FROM tickets t
+        LEFT JOIN users u ON u.id = t.user_id
+        WHERE t.id = ?
+    ");
+    $stmt->execute([$ticketId]);
+    return $stmt->fetch(PDO::FETCH_ASSOC) ?: null;
+};
+
+$dispatchWebhook = static function (string $event, array $ticket, array $previous = []) use ($webhookAgencyId): void {
+    if ($webhookAgencyId > 0) {
+        webhookService()->dispatch($webhookAgencyId, $event, $ticket, null, $previous);
+    }
+};
+
 switch ($action) {
     case 'create':
+        if (!canCreateProjectTickets($projectId, (int)$user['id'], $user['role'])) {
+            http_response_code(403);
+            echo json_encode(['success' => false, 'message' => 'Tu agencia no participa en este proyecto']);
+            exit;
+        }
         $title = trim($_POST['title'] ?? '');
         $description = trim($_POST['description'] ?? '');
         $priority = in_array($_POST['priority'] ?? '', ['baja', 'media', 'alta', 'critica']) ? $_POST['priority'] : 'media';
@@ -42,6 +68,11 @@ switch ($action) {
         $stmt = $db->prepare("INSERT INTO tickets (project_id, user_id, title, description, priority, status) VALUES (?, ?, ?, ?, ?, 'abierto')");
         $stmt->execute([$projectId, $user['id'], $title, $description, $priority]);
         $ticketId = (int)$db->lastInsertId();
+
+        $createdTicket = $fetchTicket($ticketId);
+        if ($createdTicket !== null) {
+            $dispatchWebhook('ticket.created', $createdTicket);
+        }
 
         echo json_encode([
             'success' => true,
@@ -59,17 +90,37 @@ switch ($action) {
         break;
 
     case 'update_status':
-        if (!canChangeTicketStatus($user['role'])) {
+        if (!canChangeProjectTicketStatus($projectId, (int)$user['id'], $user['role'])) {
             http_response_code(403);
             echo json_encode(['success' => false, 'message' => 'Tu nivel de acceso no permite cambiar el estado de tickets']);
             exit;
         }
 
         $ticketId = (int)($_POST['ticket_id'] ?? 0);
-        $status = in_array($_POST['status'] ?? '', ['abierto', 'en_revision', 'resuelto', 'cerrado']) ? $_POST['status'] : 'abierto';
+        $status = (string)($_POST['status'] ?? '');
+        if (!in_array($status, ['abierto', 'en_revision', 'resuelto', 'cerrado'], true)) {
+            http_response_code(422);
+            echo json_encode(['success' => false, 'message' => 'Estado de ticket no válido']);
+            exit;
+        }
+
+        $beforeTicket = $fetchTicket($ticketId);
+        if ($beforeTicket === null || (int)$beforeTicket['project_id'] !== $projectId) {
+            http_response_code(404);
+            echo json_encode(['success' => false, 'message' => 'Ticket no encontrado']);
+            exit;
+        }
 
         $stmt = $db->prepare("UPDATE tickets SET status = ? WHERE id = ? AND project_id = ?");
         $stmt->execute([$status, $ticketId, $projectId]);
+
+        $afterTicket = $fetchTicket($ticketId);
+        if ($afterTicket !== null) {
+            $dispatchWebhook('ticket.updated', $afterTicket);
+            if ((string)$beforeTicket['status'] !== (string)$afterTicket['status']) {
+                $dispatchWebhook('ticket.status_changed', $afterTicket, ['status' => (string)$beforeTicket['status']]);
+            }
+        }
 
         echo json_encode([
             'success' => true,
@@ -80,15 +131,23 @@ switch ($action) {
         break;
 
     case 'delete':
-        if (!canDeleteTickets($user['role'])) {
+        if (!canDeleteProjectTickets($projectId, (int)$user['id'], $user['role'])) {
             http_response_code(403);
             echo json_encode(['success' => false, 'message' => 'Solo los Administradores y Project Managers pueden eliminar tickets']);
             exit;
         }
 
         $ticketId = (int)($_POST['ticket_id'] ?? 0);
+        $deletedTicket = $fetchTicket($ticketId);
+        if ($deletedTicket === null || (int)$deletedTicket['project_id'] !== $projectId) {
+            http_response_code(404);
+            echo json_encode(['success' => false, 'message' => 'Ticket no encontrado']);
+            exit;
+        }
         $stmt = $db->prepare("DELETE FROM tickets WHERE id = ? AND project_id = ?");
         $stmt->execute([$ticketId, $projectId]);
+
+        $dispatchWebhook('ticket.deleted', $deletedTicket);
 
         echo json_encode([
             'success' => true,
@@ -132,7 +191,7 @@ switch ($action) {
                 'message'     => nl2br(e($r['message'])),
                 'raw_message' => $r['message'],
                 'created_at'  => formatDate($r['created_at'], true),
-                'can_delete'  => ($r['user_id'] == $user['id'] || isAdmin())
+                'can_delete'  => ($r['user_id'] == $user['id'] || (isProjectOwnerAgency($projectId, (int)$user['id']) && isAdmin()))
             ];
         }, $replies);
 
@@ -140,6 +199,11 @@ switch ($action) {
         break;
 
     case 'add_reply':
+        if (!canCreateProjectTickets($projectId, (int)$user['id'], $user['role'])) {
+            http_response_code(403);
+            echo json_encode(['success' => false, 'message' => 'Tu agencia no participa en este proyecto']);
+            exit;
+        }
         $ticketId = (int)($_POST['ticket_id'] ?? 0);
         $message = trim($_POST['message'] ?? '');
 
@@ -202,7 +266,8 @@ switch ($action) {
             exit;
         }
 
-        if ($rep['user_id'] != $user['id'] && !isAdmin()) {
+        if ($rep['user_id'] != $user['id']
+            && !(isProjectOwnerAgency($projectId, (int)$user['id']) && isAdmin())) {
             http_response_code(403);
             echo json_encode(['success' => false, 'message' => 'No tienes permiso para eliminar esta respuesta']);
             exit;

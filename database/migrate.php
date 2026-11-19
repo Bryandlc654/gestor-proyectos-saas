@@ -43,11 +43,11 @@ if (empty($runner->pending())) {
 
 // Antes del primer despliegue, comprobar que la BD no tenga tablas de otra aplicación con los mismos nombres
 if (!in_array(MigrationRunner::BASELINE, $runner->applied(), true) && ($conflicts = $runner->conflictingTables())) {
-    fwrite(STDERR, "ERROR: la base de datos " . DB_NAME . " ya contiene tablas con nombres de FlowTasks pero con otra estructura:\n");
+    fwrite(STDERR, "ERROR: la base de datos " . DB_NAME . " ya contiene tablas con nombres de Vertice pero con otra estructura:\n");
     foreach ($conflicts as $table => $reason) {
         fwrite(STDERR, "  - {$table}: {$reason}\n");
     }
-    fwrite(STDERR, "Probablemente pertenecen a otra aplicación. Usa una base de datos dedicada para FlowTasks (DB_NAME en .env).\n");
+    fwrite(STDERR, "Probablemente pertenecen a otra aplicación. Usa una base de datos dedicada para Vertice (DB_NAME en .env).\n");
     fwrite(STDERR, "No se ha modificado nada.\n");
     exit(1);
 }

@@ -9,8 +9,27 @@ CREATE TABLE IF NOT EXISTS `agencies` (
     `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-ALTER TABLE `users` ADD COLUMN `agency_id` INT NULL AFTER `id`;
-ALTER TABLE `projects` ADD COLUMN `agency_id` INT NULL AFTER `id`;
+SET @migration_sql = IF(
+    EXISTS (SELECT 1 FROM information_schema.columns
+            WHERE table_schema = DATABASE() AND table_name = 'users'
+              AND column_name = 'agency_id'),
+    'SET @migration_noop = 1',
+    'ALTER TABLE `users` ADD COLUMN `agency_id` INT NULL AFTER `id`'
+);
+PREPARE migration_stmt FROM @migration_sql;
+EXECUTE migration_stmt;
+DEALLOCATE PREPARE migration_stmt;
+
+SET @migration_sql = IF(
+    EXISTS (SELECT 1 FROM information_schema.columns
+            WHERE table_schema = DATABASE() AND table_name = 'projects'
+              AND column_name = 'agency_id'),
+    'SET @migration_noop = 1',
+    'ALTER TABLE `projects` ADD COLUMN `agency_id` INT NULL AFTER `id`'
+);
+PREPARE migration_stmt FROM @migration_sql;
+EXECUTE migration_stmt;
+DEALLOCATE PREPARE migration_stmt;
 
 -- Agencia inicial solo si ya hay datos (en una instalación nueva no se crea nada) y no se creó
 -- ya en una ejecución anterior de esta migración que se cortó a mitad
@@ -25,15 +44,49 @@ WHERE (EXISTS (SELECT 1 FROM `users`) OR EXISTS (SELECT 1 FROM `projects`))
 UPDATE `users` SET `agency_id` = (SELECT MIN(`id`) FROM `agencies`) WHERE `agency_id` IS NULL;
 UPDATE `projects` SET `agency_id` = (SELECT MIN(`id`) FROM `agencies`) WHERE `agency_id` IS NULL;
 
-ALTER TABLE `users`
-    MODIFY `agency_id` INT NOT NULL,
-    ADD INDEX `idx_users_agency` (`agency_id`),
-    ADD CONSTRAINT `fk_users_agency` FOREIGN KEY (`agency_id`) REFERENCES `agencies` (`id`) ON DELETE CASCADE;
+ALTER TABLE `users` MODIFY `agency_id` INT NOT NULL;
+SET @migration_sql = IF(
+    EXISTS (SELECT 1 FROM information_schema.statistics
+            WHERE table_schema = DATABASE() AND table_name = 'users'
+              AND index_name = 'idx_users_agency'),
+    'SET @migration_noop = 1',
+    'ALTER TABLE `users` ADD INDEX `idx_users_agency` (`agency_id`)'
+);
+PREPARE migration_stmt FROM @migration_sql;
+EXECUTE migration_stmt;
+DEALLOCATE PREPARE migration_stmt;
+SET @migration_sql = IF(
+    EXISTS (SELECT 1 FROM information_schema.table_constraints
+            WHERE constraint_schema = DATABASE() AND table_name = 'users'
+              AND constraint_name = 'fk_users_agency'),
+    'SET @migration_noop = 1',
+    'ALTER TABLE `users` ADD CONSTRAINT `fk_users_agency` FOREIGN KEY (`agency_id`) REFERENCES `agencies` (`id`) ON DELETE CASCADE'
+);
+PREPARE migration_stmt FROM @migration_sql;
+EXECUTE migration_stmt;
+DEALLOCATE PREPARE migration_stmt;
 
-ALTER TABLE `projects`
-    MODIFY `agency_id` INT NOT NULL,
-    ADD INDEX `idx_projects_agency` (`agency_id`),
-    ADD CONSTRAINT `fk_projects_agency` FOREIGN KEY (`agency_id`) REFERENCES `agencies` (`id`) ON DELETE CASCADE;
+ALTER TABLE `projects` MODIFY `agency_id` INT NOT NULL;
+SET @migration_sql = IF(
+    EXISTS (SELECT 1 FROM information_schema.statistics
+            WHERE table_schema = DATABASE() AND table_name = 'projects'
+              AND index_name = 'idx_projects_agency'),
+    'SET @migration_noop = 1',
+    'ALTER TABLE `projects` ADD INDEX `idx_projects_agency` (`agency_id`)'
+);
+PREPARE migration_stmt FROM @migration_sql;
+EXECUTE migration_stmt;
+DEALLOCATE PREPARE migration_stmt;
+SET @migration_sql = IF(
+    EXISTS (SELECT 1 FROM information_schema.table_constraints
+            WHERE constraint_schema = DATABASE() AND table_name = 'projects'
+              AND constraint_name = 'fk_projects_agency'),
+    'SET @migration_noop = 1',
+    'ALTER TABLE `projects` ADD CONSTRAINT `fk_projects_agency` FOREIGN KEY (`agency_id`) REFERENCES `agencies` (`id`) ON DELETE CASCADE'
+);
+PREPARE migration_stmt FROM @migration_sql;
+EXECUTE migration_stmt;
+DEALLOCATE PREPARE migration_stmt;
 
 -- Invitaciones por enlace para el equipo y los clientes de cada agencia.
 -- Solo se guarda el hash del token; el enlace completo se muestra una única vez al crearla.

@@ -15,7 +15,7 @@ final class MigrationRunner
     public const BASELINE = '0001_baseline';
 
     /**
-     * Columnas mínimas que identifican cada tabla de FlowTasks (presentes en todas sus versiones).
+     * Columnas mínimas que identifican cada tabla de Vertice (presentes en todas sus versiones).
      * Todas deben tener además un `id` INT, porque las claves foráneas apuntan a él.
      */
     private const SIGNATURE_COLUMNS = [
@@ -75,7 +75,7 @@ final class MigrationRunner
     }
 
     /**
-     * Tablas que ya existen con el nombre de una tabla de FlowTasks pero con otra estructura
+     * Tablas que ya existen con el nombre de una tabla de Vertice pero con otra estructura
      * (por ejemplo, de otra aplicación que comparte la base de datos). Aplicar el baseline sobre
      * ellas fallaría a mitad, así que conviene comprobarlo antes.
      *

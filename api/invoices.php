@@ -8,6 +8,11 @@ if (!isLoggedIn()) {
     echo json_encode(['success' => false, 'message' => 'No autorizado']);
     exit;
 }
+if (!moduleAllowed('invoices')) {
+    http_response_code(403);
+    echo json_encode(['success' => false, 'message' => 'El módulo de facturación está desactivado para tu rol']);
+    exit;
+}
 
 $user = currentUser();
 $db = getDB();
@@ -31,8 +36,38 @@ if (!canAccessProject($projectId, $user['id'], $user['role'])) {
 $isClient = ($user['role'] === 'cliente');
 $canManageFinances = canManageProject($projectId, $user['id'], $user['role']);
 
+$runCashAutomation = static function (callable $callback): void {
+    try {
+        $callback();
+    } catch (\Throwable $e) {
+        error_log('Caja automática: ' . $e->getMessage());
+    }
+};
+
+// Factura de este proyecto o 404 (nunca se cruzan proyectos entre sí)
+$requireInvoice = static function (int $invoiceId) use ($db, $projectId): array {
+    $stmt = $db->prepare("SELECT id, invoice_number FROM invoices WHERE id = ? AND project_id = ?");
+    $stmt->execute([$invoiceId, $projectId]);
+    $invoice = $stmt->fetch(PDO::FETCH_ASSOC);
+    if (!$invoice) {
+        http_response_code(404);
+        echo json_encode(['success' => false, 'message' => 'Factura no encontrada']);
+        exit;
+    }
+    return $invoice;
+};
+
 switch ($action) {
     case 'list':
+        // Las finanzas nunca se comparten con la agencia invitada.
+        if (!$canManageFinances) {
+            http_response_code(403);
+            echo json_encode(['success' => false, 'message' => 'Las finanzas solo las ve la agencia dueña del proyecto']);
+            exit;
+        }
+
+        activityRepository()->logByUser((int)$user['id'], $projectId, 'finance.viewed', 'Consultó las finanzas del proyecto');
+
         $stmt = $db->prepare("
             SELECT * FROM invoices 
             WHERE project_id = ? 
@@ -52,24 +87,31 @@ switch ($action) {
 
         $list = array_map(function($inv) use (&$totalInvoiced, &$totalPaid, &$totalPending) {
             $amt = floatval($inv['amount']);
+            $paid = min($amt, max(0.0, floatval($inv['paid_amount'] ?? 0)));
+            $balance = max(0.0, $amt - $paid);
             if ($inv['status'] !== 'anulada') {
                 $totalInvoiced += $amt;
-                if ($inv['status'] === 'pagada') {
-                    $totalPaid += $amt;
-                } elseif ($inv['status'] === 'pendiente') {
-                    $totalPending += $amt;
-                }
+                $totalPaid += $paid;
+                $totalPending += $balance;
             }
+
+            $displayStatus = $inv['status'] === 'pagada' ? 'pagada' : ($inv['status'] === 'anulada' ? 'anulada' : ($paid > 0 ? 'parcial' : 'pendiente'));
 
             return [
                 'id' => (int)$inv['id'],
                 'project_id' => (int)$inv['project_id'],
                 'invoice_number' => $inv['invoice_number'],
+                'client_name' => $inv['client_name'] ?? null,
                 'concept' => $inv['concept'],
                 'amount' => $amt,
                 'amount_formatted' => number_format($amt, 2),
+                'paid' => $paid,
+                'paid_formatted' => number_format($paid, 2),
+                'balance' => $balance,
+                'balance_formatted' => number_format($balance, 2),
                 'currency' => $inv['currency'] ?: 'USD',
                 'status' => $inv['status'],
+                'display_status' => $displayStatus,
                 'due_date' => $inv['due_date'],
                 'due_date_formatted' => $inv['due_date'] ? formatDate($inv['due_date']) : '-',
                 'paid_at' => $inv['paid_at'],
@@ -109,9 +151,20 @@ switch ($action) {
         }
 
         $invoiceNumber = trim($_POST['invoice_number'] ?? '');
+        $clientName = trim((string)($_POST['client_name'] ?? ''));
+        if (mb_strlen($clientName) > 150) {
+            $clientName = mb_substr($clientName, 0, 150);
+        }
         $concept = trim($_POST['concept'] ?? '');
         $amount = floatval($_POST['amount'] ?? 0);
-        $currency = trim($_POST['currency'] ?? 'USD');
+        $currency = strtoupper(trim((string)($_POST['currency'] ?? '')));
+        if (!isValidCurrency($currency)) {
+            // Sin moneda válida se usa la del proyecto (evita facturar en USD por defecto)
+            $stmtCurrency = $db->prepare("SELECT currency FROM projects WHERE id = ?");
+            $stmtCurrency->execute([$projectId]);
+            $projectCurrency = (string)$stmtCurrency->fetchColumn();
+            $currency = isValidCurrency($projectCurrency) ? strtoupper($projectCurrency) : 'USD';
+        }
         $dueDate = !empty($_POST['due_date']) ? $_POST['due_date'] : null;
         $status = in_array($_POST['status'] ?? '', ['pendiente', 'pagada', 'anulada']) ? $_POST['status'] : 'pendiente';
         $paidAt = ($status === 'pagada') ? (!empty($_POST['paid_at']) ? $_POST['paid_at'] : date('Y-m-d')) : null;
@@ -124,6 +177,12 @@ switch ($action) {
 
         if ($amount <= 0) {
             echo json_encode(['success' => false, 'message' => 'El importe debe ser mayor a 0']);
+            exit;
+        }
+
+        if (($dueDate !== null && !isIsoDate((string)$dueDate)) || ($paidAt !== null && !isIsoDate((string)$paidAt))) {
+            http_response_code(422);
+            echo json_encode(['success' => false, 'message' => 'La fecha indicada no es válida']);
             exit;
         }
 
@@ -145,12 +204,20 @@ switch ($action) {
                 } while ($stmtExists->fetchColumn());
             }
 
+            $paidAmount = $status === 'pagada' ? round((float)$amount, 2) : 0.0;
             $stmt = $db->prepare("
-                INSERT INTO invoices (project_id, invoice_number, concept, amount, currency, status, due_date, paid_at, notes)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                INSERT INTO invoices (agency_id, project_id, invoice_number, client_name, concept, amount, paid_amount, currency, status, due_date, paid_at, notes)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ");
-            $stmt->execute([$projectId, $invoiceNumber, $concept, $amount, $currency, $status, $dueDate, $paidAt, $notes]);
+            $stmt->execute([currentAgencyId(), $projectId, $invoiceNumber, $clientName !== '' ? $clientName : null, $concept, $amount, $paidAmount, $currency, $status, $dueDate, $paidAt, $notes]);
             $invId = (int)$db->lastInsertId();
+
+            if ($paidAmount > 0) {
+                $db->prepare("
+                    INSERT INTO invoice_payments (invoice_id, agency_id, amount, currency, paid_at, method, notes, created_by)
+                    VALUES (?, ?, ?, ?, ?, NULL, 'Cobro inicial al registrar la factura', ?)
+                ")->execute([$invId, currentAgencyId(), $paidAmount, $currency, $paidAt ?: date('Y-m-d'), (int)$user['id']]);
+            }
             $db->commit();
         } catch (PDOException $e) {
             $db->rollBack();
@@ -162,6 +229,21 @@ switch ($action) {
             throw $e;
         }
 
+        activityRepository()->logByUser((int)$user['id'], $projectId, 'invoice.created', 'Emitió la factura "' . $invoiceNumber . '" por ' . $amount . ' ' . $currency);
+        if ($status === 'pagada') {
+            foreach (financeRepository()->invoicePaymentIds($invId, currentAgencyId()) as $paymentId) {
+                $runCashAutomation(static fn() => cashAutomationService()->syncInvoicePayment($paymentId, currentAgencyId(), (int)$user['id']));
+            }
+        }
+        notificationService()->notifyAgencyAdmins(
+            currentAgencyId(),
+            'invoice.created',
+            'Nueva factura emitida',
+            $user['name'] . ' emitió la factura ' . $invoiceNumber . ' por ' . number_format($amount, 2) . ' ' . $currency . '.',
+            'invoices',
+            true,
+            (int)$user['id']
+        );
         echo json_encode([
             'success' => true,
             'message' => 'Factura / cobro registrado con éxito',
@@ -186,8 +268,47 @@ switch ($action) {
 
         $paidAt = ($newStatus === 'pagada') ? date('Y-m-d') : null;
 
-        $stmt = $db->prepare("UPDATE invoices SET status = ?, paid_at = ? WHERE id = ? AND project_id = ?");
-        $stmt->execute([$newStatus, $paidAt, $invoiceId, $projectId]);
+        $stmtInv = $db->prepare("SELECT invoice_number, status, amount, paid_amount FROM invoices WHERE id = ? AND project_id = ?");
+        $stmtInv->execute([$invoiceId, $projectId]);
+        $invoiceRow = $stmtInv->fetch(PDO::FETCH_ASSOC);
+        $invoiceNumber = $invoiceRow ? (string)$invoiceRow['invoice_number'] : ('#' . $invoiceId);
+        $previousStatus = $invoiceRow ? (string)$invoiceRow['status'] : '';
+
+        if ($newStatus === 'pagada') {
+            $paymentId = financeRepository()->markInvoicePaid($invoiceId, currentAgencyId(), (int)$user['id']);
+            if ($paymentId > 0) {
+                $runCashAutomation(static fn() => cashAutomationService()->syncInvoicePayment($paymentId, currentAgencyId(), (int)$user['id']));
+            }
+        } elseif ($newStatus === 'pendiente' && $previousStatus === 'anulada') {
+            $isFullyPaid = (float)$invoiceRow['paid_amount'] + 0.005 >= (float)$invoiceRow['amount'];
+            $db->prepare("UPDATE invoices SET status = ?, paid_at = CASE WHEN ? = 'pagada' THEN (SELECT MAX(paid_at) FROM invoice_payments WHERE invoice_id = ?) ELSE NULL END WHERE id = ? AND project_id = ?")
+                ->execute([$isFullyPaid ? 'pagada' : 'pendiente', $isFullyPaid ? 'pagada' : 'pendiente', $invoiceId, $invoiceId, $projectId]);
+            foreach (financeRepository()->invoicePaymentIds($invoiceId, currentAgencyId()) as $paymentId) {
+                $runCashAutomation(static fn() => cashAutomationService()->syncInvoicePayment($paymentId, currentAgencyId(), (int)$user['id']));
+            }
+        } elseif ($newStatus === 'pendiente') {
+            $runCashAutomation(static fn() => cashAutomationService()->unsyncInvoicePayments($invoiceId, currentAgencyId()));
+            $runCashAutomation(static fn() => cashAutomationService()->unsyncInvoice($invoiceId, currentAgencyId()));
+            financeRepository()->reopenInvoice($invoiceId, currentAgencyId());
+            $db->prepare("UPDATE invoices SET status = 'pendiente', paid_at = NULL WHERE id = ? AND project_id = ?")->execute([$invoiceId, $projectId]);
+        } else {
+            $runCashAutomation(static fn() => cashAutomationService()->unsyncInvoicePayments($invoiceId, currentAgencyId()));
+            $runCashAutomation(static fn() => cashAutomationService()->unsyncInvoice($invoiceId, currentAgencyId()));
+            $db->prepare("UPDATE invoices SET status = 'anulada', paid_at = NULL WHERE id = ? AND project_id = ?")->execute([$invoiceId, $projectId]);
+        }
+        activityRepository()->logByUser((int)$user['id'], $projectId, 'invoice.status_changed', 'Cambió la factura #' . $invoiceId . ' a ' . $newStatus);
+
+        if ($newStatus === 'pagada') {
+            notificationService()->notifyAgencyAdmins(
+                currentAgencyId(),
+                'invoice.paid',
+                'Factura pagada',
+                'La factura ' . $invoiceNumber . ' se marcó como pagada.',
+                'invoices',
+                true,
+                (int)$user['id']
+            );
+        }
 
         echo json_encode([
             'success' => true,
@@ -205,15 +326,22 @@ switch ($action) {
         }
 
         $budget = floatval($_POST['budget'] ?? 0);
-        $currency = trim($_POST['currency'] ?? 'USD');
+        $currency = strtoupper(trim((string)($_POST['currency'] ?? '')));
 
         if ($budget < 0) {
             echo json_encode(['success' => false, 'message' => 'El costo/presupuesto no puede ser negativo']);
             exit;
         }
 
+        if (!isValidCurrency($currency)) {
+            http_response_code(422);
+            echo json_encode(['success' => false, 'message' => 'Moneda no válida']);
+            exit;
+        }
+
         $stmt = $db->prepare("UPDATE projects SET budget = ?, currency = ? WHERE id = ?");
         $stmt->execute([$budget, $currency, $projectId]);
+        activityRepository()->logByUser((int)$user['id'], $projectId, 'budget.updated', 'Actualizó el presupuesto a ' . $budget . ' ' . $currency);
 
         echo json_encode([
             'success' => true,
@@ -224,6 +352,125 @@ switch ($action) {
         ]);
         break;
 
+    case 'documents_list':
+        if (!$canManageFinances) {
+            http_response_code(403);
+            echo json_encode(['success' => false, 'message' => 'Las finanzas solo las ve la agencia dueña del proyecto']);
+            exit;
+        }
+
+        $invoice = $requireInvoice((int)($_POST['invoice_id'] ?? 0));
+
+        $stmtDocs = $db->prepare("
+            SELECT id, original_name, file_size, file_type, created_at
+            FROM project_files
+            WHERE invoice_id = ? AND project_id = ?
+            ORDER BY created_at DESC
+        ");
+        $stmtDocs->execute([(int)$invoice['id'], $projectId]);
+
+        $documents = array_map(static function (array $doc): array {
+            return [
+                'id' => (int)$doc['id'],
+                'name' => $doc['original_name'],
+                'size' => (int)$doc['file_size'],
+                'size_formatted' => formatBytes((int)$doc['file_size']),
+                'type' => $doc['file_type'],
+                'created_at' => formatDate($doc['created_at'], true),
+                'download_url' => 'api/files.php?action=download&id=' . (int)$doc['id'],
+            ];
+        }, $stmtDocs->fetchAll(PDO::FETCH_ASSOC));
+
+        echo json_encode([
+            'success' => true,
+            'invoice_id' => (int)$invoice['id'],
+            'invoice_number' => $invoice['invoice_number'],
+            'documents' => $documents,
+        ]);
+        break;
+
+    case 'document_upload':
+        if (!$canManageFinances) {
+            http_response_code(403);
+            echo json_encode(['success' => false, 'message' => 'No tienes permisos para adjuntar documentos a facturas']);
+            exit;
+        }
+
+        $invoice = $requireInvoice((int)($_POST['invoice_id'] ?? 0));
+
+        if (!isset($_FILES['file'])) {
+            echo json_encode(['success' => false, 'message' => 'Selecciona un archivo para subir']);
+            exit;
+        }
+
+        $stored = storeUploadedAttachment($_FILES['file']);
+        if (!$stored['ok']) {
+            http_response_code(422);
+            echo json_encode(['success' => false, 'message' => $stored['error']]);
+            exit;
+        }
+
+        $db->prepare("
+            INSERT INTO project_files (project_id, user_id, invoice_id, original_name, stored_name, file_size, file_type)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        ")->execute([
+            $projectId,
+            (int)$user['id'],
+            (int)$invoice['id'],
+            $stored['original_name'],
+            $stored['stored_name'],
+            $stored['size'],
+            $stored['mime'],
+        ]);
+        $documentId = (int)$db->lastInsertId();
+
+        activityRepository()->logByUser((int)$user['id'], $projectId, 'invoice.document_uploaded', 'Adjuntó "' . $stored['original_name'] . '" a la factura ' . $invoice['invoice_number']);
+
+        echo json_encode([
+            'success' => true,
+            'message' => 'Documento subido',
+            'document' => [
+                'id' => $documentId,
+                'name' => $stored['original_name'],
+                'size_formatted' => formatBytes($stored['size']),
+                'download_url' => 'api/files.php?action=download&id=' . $documentId,
+            ],
+        ]);
+        break;
+
+    case 'document_delete':
+        if (!$canManageFinances) {
+            http_response_code(403);
+            echo json_encode(['success' => false, 'message' => 'No tienes permisos para eliminar documentos de facturas']);
+            exit;
+        }
+
+        $documentId = (int)($_POST['document_id'] ?? 0);
+        $stmtDoc = $db->prepare("
+            SELECT id, stored_name, original_name
+            FROM project_files
+            WHERE id = ? AND project_id = ? AND invoice_id IS NOT NULL
+        ");
+        $stmtDoc->execute([$documentId, $projectId]);
+        $document = $stmtDoc->fetch(PDO::FETCH_ASSOC);
+
+        if (!$document) {
+            http_response_code(404);
+            echo json_encode(['success' => false, 'message' => 'Documento no encontrado']);
+            exit;
+        }
+
+        $db->prepare("DELETE FROM project_files WHERE id = ?")->execute([$documentId]);
+        $filePath = dirname(__DIR__) . '/uploads/' . $document['stored_name'];
+        if (is_file($filePath)) {
+            @unlink($filePath);
+        }
+
+        activityRepository()->logByUser((int)$user['id'], $projectId, 'invoice.document_deleted', 'Eliminó el documento "' . $document['original_name'] . '"');
+
+        echo json_encode(['success' => true, 'message' => 'Documento eliminado']);
+        break;
+
     case 'delete':
         if (!$canManageFinances) {
             http_response_code(403);
@@ -232,8 +479,28 @@ switch ($action) {
         }
 
         $invoiceId = (int)($_POST['invoice_id'] ?? 0);
+
+        // Recuperar los documentos antes del borrado en cascada para eliminar también los archivos
+        $stmtDocs = $db->prepare("SELECT stored_name FROM project_files WHERE invoice_id = ? AND project_id = ?");
+        $stmtDocs->execute([$invoiceId, $projectId]);
+        $storedFiles = $stmtDocs->fetchAll(PDO::FETCH_COLUMN);
+
+        $paymentIds = financeRepository()->invoicePaymentIds($invoiceId, currentAgencyId());
         $stmt = $db->prepare("DELETE FROM invoices WHERE id = ? AND project_id = ?");
         $stmt->execute([$invoiceId, $projectId]);
+        foreach ($paymentIds as $paymentId) {
+            $runCashAutomation(static fn() => cashAutomationService()->unsyncInvoicePayment($paymentId, currentAgencyId()));
+        }
+        $runCashAutomation(static fn() => cashAutomationService()->unsyncInvoice($invoiceId, currentAgencyId()));
+
+        foreach ($storedFiles as $storedName) {
+            $filePath = dirname(__DIR__) . '/uploads/' . $storedName;
+            if (is_file($filePath)) {
+                @unlink($filePath);
+            }
+        }
+
+        activityRepository()->logByUser((int)$user['id'], $projectId, 'invoice.deleted', 'Eliminó la factura #' . $invoiceId);
 
         echo json_encode(['success' => true, 'message' => 'Factura eliminada']);
         break;

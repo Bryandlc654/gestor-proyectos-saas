@@ -1,0 +1,9 @@
+User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /actions/
+Disallow: /includes/
+Disallow: /database/
+Disallow: /uploads/
+
+Sitemap: https://verticeplatform.com/sitemap.xml

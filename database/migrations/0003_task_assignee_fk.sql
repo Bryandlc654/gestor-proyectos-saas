@@ -2,9 +2,27 @@
 -- La columna `assigned_to` se conserva temporalmente como dato heredado de solo lectura:
 -- se muestra mientras la tarea no tenga `assigned_user_id` y se vacía al reasignarla.
 
-ALTER TABLE `tasks`
-    ADD COLUMN `assigned_user_id` INT NULL AFTER `assigned_to`,
-    ADD CONSTRAINT `fk_tasks_assignee` FOREIGN KEY (`assigned_user_id`) REFERENCES `users` (`id`) ON DELETE SET NULL;
+SET @migration_sql = IF(
+    EXISTS (SELECT 1 FROM information_schema.columns
+            WHERE table_schema = DATABASE() AND table_name = 'tasks'
+              AND column_name = 'assigned_user_id'),
+    'SET @migration_noop = 1',
+    'ALTER TABLE `tasks` ADD COLUMN `assigned_user_id` INT NULL AFTER `assigned_to`'
+);
+PREPARE migration_stmt FROM @migration_sql;
+EXECUTE migration_stmt;
+DEALLOCATE PREPARE migration_stmt;
+
+SET @migration_sql = IF(
+    EXISTS (SELECT 1 FROM information_schema.table_constraints
+            WHERE constraint_schema = DATABASE() AND table_name = 'tasks'
+              AND constraint_name = 'fk_tasks_assignee'),
+    'SET @migration_noop = 1',
+    'ALTER TABLE `tasks` ADD CONSTRAINT `fk_tasks_assignee` FOREIGN KEY (`assigned_user_id`) REFERENCES `users` (`id`) ON DELETE SET NULL'
+);
+PREPARE migration_stmt FROM @migration_sql;
+EXECUTE migration_stmt;
+DEALLOCATE PREPARE migration_stmt;
 
 -- 1) Coincidencia exacta de nombre con un miembro (o el propietario) del mismo proyecto
 UPDATE `tasks` t

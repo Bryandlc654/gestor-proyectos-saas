@@ -29,7 +29,7 @@ if (!canAccessProject($projectId, $user['id'], $user['role'])) {
 }
 
 // Los clientes solo tienen permisos de lectura en checklists
-if (!canManageChecklists($user['role'])) {
+if (!canManageProjectChecklists($projectId, (int)$user['id'], $user['role'])) {
     http_response_code(403);
     echo json_encode(['success' => false, 'message' => 'Los clientes tienen acceso de solo lectura en las listas de verificación']);
     exit;

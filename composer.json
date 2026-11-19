@@ -1,6 +1,6 @@
 {
-    "name": "flowtasks/gestor-proyectos",
-    "description": "FlowTasks - gestor de proyectos, tareas, tickets y recursos",
+    "name": "vertice/gestor-proyectos",
+    "description": "Vertice - gestor de proyectos, tareas, tickets y recursos",
     "type": "project",
     "license": "proprietary",
     "require": {

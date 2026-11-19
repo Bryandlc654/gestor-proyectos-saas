@@ -8,5 +8,11 @@ use App\Repository\ProjectRepository;
 use App\Repository\TaskRepository;
 
 $router = new Router();
-(new TaskController($user, new ProjectRepository(getDB()), new TaskRepository(getDB())))->register($router);
+(new TaskController(
+    $user,
+    new ProjectRepository(getDB()),
+    new TaskRepository(getDB()),
+    activityRepository(),
+    notificationService()
+))->register($router);
 $router->dispatch($request);

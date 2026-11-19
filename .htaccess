@@ -1,12 +1,87 @@
+# URLs limpias: /register en lugar de /register.php (ver config/app.php y README)
+# Enlaces públicos por agencia: /mi-agencia -> agency.php?slug=mi-agencia
+<IfModule mod_mime.c>
+    AddType application/manifest+json .webmanifest
+</IfModule>
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # Pasar la cabecera Authorization a PHP en CGI/FastCGI
+    RewriteCond %{HTTP:Authorization} .
+    RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
+
+    # La portada siempre en la raíz
+    RewriteCond %{THE_REQUEST} \s/+index\.php[\s?] [NC]
+    RewriteRule ^ / [R=301,L]
+    RewriteRule ^index/?$ / [R=301,L]
+
+    # SEO: sitemap dinámico y alias antiguos de la landing
+    RewriteRule ^sitemap\.xml$ sitemap.php [L]
+    RewriteRule ^(landing|landing\.php)/?$ / [R=301,L]
+
+    # Comparativas públicas: /comparar/clickup -> compare.php?c=clickup
+    RewriteRule ^comparar/?$ /#comparar [R=301,NE,L]
+    RewriteRule ^comparar/([a-z0-9-]+)/?$ compare.php?c=$1 [L,QSA]
+
+    # Páginas de solución (funciones y sectores): /soluciones/crm-para-agencias -> solution.php?s=crm-para-agencias
+    RewriteRule ^soluciones/?$ /#para-quien [R=301,NE,L]
+    RewriteRule ^soluciones/([a-z0-9-]+)/?$ solution.php?s=$1 [L,QSA]
+
+    # API v1 (autenticada con Bearer token)
+    RewriteRule ^api/v1/projects/?$ api/v1/projects.php [L,QSA]
+    RewriteRule ^api/v1/tickets/?$ api/v1/tickets.php [L,QSA]
+    RewriteRule ^api/v1/tickets/([0-9]+)/?$ api/v1/ticket.php?id=$1 [L,QSA]
+
+    # Front React: /app y sus rutas internas
+    RewriteRule ^app(/.*)?$ app.php [L,QSA]
+
+    # Rutas del antiguo front PHP (eliminado): redirigen a su pantalla en React.
+    # Siguen llegando desde correos ya enviados (menciones, recordatorios) y marcadores.
+    # El "?" final descarta el query string antiguo cuando el id pasa a la ruta.
+    RewriteRule ^project/([0-9]+)(?:/[A-Za-z0-9_-]+)?/?$ /app/projects/$1 [R=301,L]
+    RewriteCond %{QUERY_STRING} (?:^|&)id=([0-9]+)
+    RewriteRule ^project-view(?:\.php)?/?$ /app/projects/%1? [R=301,L]
+    RewriteCond %{QUERY_STRING} (?:^|&)id=([0-9]+)
+    RewriteRule ^crm-company(?:\.php)?/?$ /app/crm/companies/%1? [R=301,L]
+    RewriteCond %{QUERY_STRING} (?:^|&)id=([0-9]+)
+    RewriteRule ^quote-view(?:\.php)?/?$ /app/quotes/%1? [R=301,L]
+    RewriteCond %{QUERY_STRING} (?:^|&)id=([0-9]+)
+    RewriteRule ^quote-form(?:\.php)?/?$ /app/quotes/%1/edit? [R=301,L]
+    RewriteRule ^quote-form(?:\.php)?/?$ /app/quotes/new? [R=301,L]
+    RewriteRule ^(?:project-view|crm-company|quote-view)(?:\.php)?/?$ /app/dashboard? [R=301,L]
+    RewriteRule ^invoices(?:\.php)?/?$ /app/billing [R=301,L]
+    RewriteRule ^(dashboard|tasks|calendar|crm|finance|cash|quotes|reports|profitability|templates|trash|support|settings|users|connections|api-tokens)(?:\.php)?/?$ /app/$1 [R=301,L]
+
+    # Quitar la extensión .php de la barra de direcciones (solo GET, para no romper los formularios POST).
+    # Los endpoints internos (api/, database/) conservan su ruta con .php.
+    RewriteCond %{REQUEST_METHOD} ^GET$ [NC]
+    RewriteCond %{THE_REQUEST} \s/+([^\s?]+)\.php[\s?] [NC]
+    RewriteCond %1 !^(api|database)/ [NC]
+    RewriteRule ^ /%1 [R=301,L,NE]
+
+    # Resolver /pagina como pagina.php cuando ese archivo existe
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteCond %{DOCUMENT_ROOT}/$1.php -f
+    RewriteRule ^([A-Za-z0-9_-]+)/?$ $1.php [L,QSA]
+
+    # Enlaces públicos por agencia: /mi-agencia -> agency.php?slug=mi-agencia
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteRule ^([a-zA-Z0-9][a-zA-Z0-9-]{1,58}[a-zA-Z0-9])/?$ agency.php?slug=$1 [L,QSA]
+</IfModule>
+
 # Bloquear acceso web a archivos ocultos y sensibles (.env, .git, etc.)
 <FilesMatch "^\.">
     Require all denied
 </FilesMatch>
 RedirectMatch 404 /\.git
+RedirectMatch 404 ^/storage(/|$)
 # Dependencias y código interno (vendor/ no debe desplegarse, pero por si acaso)
 RedirectMatch 404 /(vendor|node_modules|src|tests)(/|$)
 
-<FilesMatch "(?i)(\.(sql|md|example|log|ini|json|lock|xml|dist)|^tailwind\.config\.js)$">
+# phpunit.xml se bloquea por nombre: bloquear todos los .xml dejaba /sitemap.xml en 403
+<FilesMatch "(?i)(\.(sql|md|example|log|ini|json|lock|dist)|^phpunit\.xml)$">
     Require all denied
 </FilesMatch>
 

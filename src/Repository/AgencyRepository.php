@@ -2,6 +2,7 @@
 
 namespace App\Repository;
 
+use DomainException;
 use PDO;
 
 /**
@@ -13,19 +14,94 @@ final class AgencyRepository
     {
     }
 
-    /** @return array{id: int, name: string, logo: ?string}|null */
+    /** @return array{id: int, name: string, logo: ?string, slug: string}|null */
     public function find(int $id): ?array
     {
-        $stmt = $this->db->prepare("SELECT id, name, logo FROM agencies WHERE id = ?");
+        $stmt = $this->db->prepare("SELECT id, name, logo, slug FROM agencies WHERE id = ?");
         $stmt->execute([$id]);
         $row = $stmt->fetch(PDO::FETCH_ASSOC);
-        return $row ? ['id' => (int)$row['id'], 'name' => $row['name'], 'logo' => $row['logo']] : null;
+        return $row ? [
+            'id' => (int)$row['id'],
+            'name' => $row['name'],
+            'logo' => $row['logo'],
+            'slug' => (string)$row['slug'],
+        ] : null;
+    }
+
+    /** @return array{id: int, name: string, logo: ?string, slug: string}|null */
+    public function findBySlug(string $slug): ?array
+    {
+        $stmt = $this->db->prepare("SELECT id FROM agencies WHERE slug = ?");
+        $stmt->execute([$slug]);
+        $id = $stmt->fetchColumn();
+        return $id ? $this->find((int)$id) : null;
     }
 
     public function create(string $name): int
     {
-        $this->db->prepare("INSERT INTO agencies (name) VALUES (?)")->execute([$name]);
+        $slug = $this->uniqueSlug($this->slugify($name));
+        $this->db->prepare("INSERT INTO agencies (name, slug) VALUES (?, ?)")->execute([$name, $slug]);
         return (int)$this->db->lastInsertId();
+    }
+
+    public function setSlug(int $id, string $slug): string
+    {
+        $slug = strtolower(trim($slug));
+        if (!preg_match('/^[a-z0-9](?:[a-z0-9-]{1,58}[a-z0-9])$/', $slug)) {
+            throw new DomainException('El enlace debe tener entre 3 y 60 caracteres: letras minúsculas, números y guiones.');
+        }
+        if (in_array($slug, self::RESERVED_SLUGS, true)) {
+            throw new DomainException('Ese enlace está reservado. Elige otro.');
+        }
+
+        $stmt = $this->db->prepare("SELECT 1 FROM agencies WHERE slug = ? AND id <> ?");
+        $stmt->execute([$slug, $id]);
+        if ($stmt->fetchColumn()) {
+            throw new DomainException('Ese enlace ya está en uso por otra agencia.');
+        }
+
+        $this->db->prepare("UPDATE agencies SET slug = ? WHERE id = ?")->execute([$slug, $id]);
+        return $slug;
+    }
+
+    private const RESERVED_SLUGS = [
+        'admin', 'agencia', 'api', 'api-tokens', 'assets', 'calendar', 'compare', 'comparar', 'config', 'connections', 'crm', 'crm-company', 'dashboard', 'database',
+        'export', 'finance', 'forgot-password', 'google-callback', 'google-login', 'includes', 'index', 'invite', 'invoices', 'login', 'logout',
+        'node_modules', 'profile', 'profitability', 'project', 'quote', 'quote-form', 'quote-pdf', 'quote-view', 'quotes',
+        'register', 'reports', 'reset-password', 'security', 'settings', 'src',
+        'tasks', 'templates', 'tests', 'trash', 'two-factor', 'uploads', 'users', 'vendor', 'verify-email',
+    ];
+
+    private function slugify(string $name): string
+    {
+        $ascii = @iconv('UTF-8', 'ASCII//TRANSLIT', $name);
+        $base = strtolower($ascii !== false ? $ascii : $name);
+        $base = preg_replace('/[^a-z0-9]+/', '-', $base) ?: '';
+        $base = trim($base, '-');
+        if ($base === '') {
+            $base = 'agencia';
+        }
+        if (in_array($base, self::RESERVED_SLUGS, true)) {
+            $base = 'agencia-' . $base;
+        }
+        if (strlen($base) < 3) {
+            $base .= '-agencia';
+        }
+        return substr($base, 0, 50);
+    }
+
+    private function uniqueSlug(string $base): string
+    {
+        $candidate = $base;
+        $suffix = 2;
+        while (true) {
+            $stmt = $this->db->prepare("SELECT 1 FROM agencies WHERE slug = ?");
+            $stmt->execute([$candidate]);
+            if (!$stmt->fetchColumn()) {
+                return $candidate;
+            }
+            $candidate = substr($base, 0, 55) . '-' . $suffix++;
+        }
     }
 
     public function rename(int $id, string $name): void
