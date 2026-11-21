@@ -28,7 +28,7 @@ const structuredData = [
     alternateName: 'Vértice Platform',
     url: `${site}/`,
     logo: `${site}/assets/logo.png`,
-    description: 'Vértice desarrolla Vértice Agency, el ERP para agencias, y Vértice ERP, el ERP para empresas con facturación electrónica SUNAT.',
+    description: 'Vértice desarrolla Vértice ERP, el ERP para empresas con facturación electrónica SUNAT, y Vértice Agency, el sistema para agencias que trabajan por proyectos.',
   },
   {
     '@context': 'https://schema.org',

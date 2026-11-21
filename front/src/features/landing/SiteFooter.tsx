@@ -2,6 +2,7 @@
 import { ArrowUp, ArrowUpRight, Lock, ShieldCheck, Smartphone } from 'lucide-react';
 import { COMPETITORS } from './compare-data';
 import { SOLUTION_ERP, SOLUTION_FEATURES, SOLUTION_SECTORS, solutionHref } from './solution-data';
+import { ErpDemoLink } from './LeadPrompts';
 
 const asset = (file: string) => `${import.meta.env.BASE_URL}${file}`;
 
@@ -12,8 +13,8 @@ export function SiteFooter({ onHome = false }: { onHome?: boolean }) {
     {
       title: 'Producto',
       links: [
-        { label: 'Vértice Agency', href: a('agency') },
         { label: 'Vértice ERP', href: a('erp') },
+        { label: 'Vértice Agency', href: a('agency') },
         { label: 'Red de agencias', href: a('red') },
         { label: 'Preguntas frecuentes', href: a('faq') },
       ],
@@ -62,10 +63,11 @@ export function SiteFooter({ onHome = false }: { onHome?: boolean }) {
             <p className="vx-display mt-6 max-w-xs text-2xl font-bold leading-tight text-navy-950">
               Tu negocio, <span className="vx-gradient-text">en su vértice.</span>
             </p>
-            <a href="/app/register" className="group mt-6 inline-flex items-center gap-2 rounded-full bg-navy-950 py-2.5 pl-5 pr-2.5 text-sm font-semibold text-white shadow-lg shadow-navy-900/20 transition hover:bg-navy-900">
-              Empezar gratis
+            <ErpDemoLink className="group mt-6 inline-flex items-center gap-2 rounded-full bg-navy-950 py-2.5 pl-5 pr-2.5 text-sm font-semibold text-white shadow-lg shadow-navy-900/20 transition hover:bg-navy-900">
+              Solicitar demo de ERP
               <span className="flex h-6 w-6 items-center justify-center rounded-full bg-gradient-to-br from-brand-500 to-cyan-400 transition group-hover:rotate-45"><ArrowUpRight className="h-3.5 w-3.5" /></span>
-            </a>
+            </ErpDemoLink>
+            <a href="/app/register" className="mt-3 block text-xs font-semibold text-slate-500 hover:text-brand-600">¿Agencia? Crea tu cuenta de Vértice Agency gratis</a>
             <ul className="mt-8 flex flex-wrap gap-2">
               {[
                 { icon: <Lock className="h-3 w-3" />, t: 'Datos aislados' },

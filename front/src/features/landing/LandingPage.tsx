@@ -1,11 +1,12 @@
-import { useEffect, useRef, useState, type CSSProperties, type MouseEvent, type ReactNode } from 'react';
+import { useEffect, useState, type MouseEvent, type ReactNode } from 'react';
 import {
   ArrowRight, ArrowUpRight, BarChart3, Briefcase, CheckCircle2, Code2, FileText, FolderKanban, GanttChartSquare,
-  Building, Building2, Check, Handshake, LifeBuoy, Link2, Megaphone, Palette, Plus, ShieldCheck, Sparkles, UserRound, Users, Wallet, X, Lock, Eye, MessageSquare, Pencil,
-  BadgeCheck, Boxes, CalendarClock, ClipboardList, FileDiff, HandCoins, Package, ReceiptText, ShoppingCart, Store, Truck, UserCheck,
+  Building, Building2, Check, LifeBuoy, Link2, Megaphone, Palette, Plus, ShieldCheck, Sparkles, UserRound, Users, Wallet, X, Lock, Eye, MessageSquare, Pencil,
+  BadgeCheck, Boxes, CalendarClock, ClipboardList, FileDiff, FileSpreadsheet, HandCoins, Package, ReceiptText, ShoppingCart, Store, Truck, UserCheck,
 } from 'lucide-react';
 import { COMPARE_ROWS, COMPETITORS, VERTICE_SUPPORT } from './compare-data';
-import { AGENCY_SIGNUP_HREF, ERP_DEMO_EXTERNAL, ERP_DEMO_HREF, ERP_GROUPS } from './products';
+import { AGENCY_SIGNUP_HREF, ERP_GROUPS, ERP_MODULE_NAMES } from './products';
+import { ErpDemoLink, ExitIntent, StickyErpCta } from './LeadPrompts';
 import { SOLUTION_ERP, SOLUTION_FEATURES, solutionHref } from './solution-data';
 import { SiteFooter } from './SiteFooter';
 import './landing.css';
@@ -51,13 +52,6 @@ function Eyebrow({ children }: { children: ReactNode }) {
   );
 }
 
-/** Enlace a "Solicitar demo" de Vértice ERP (WhatsApp en pestaña nueva si está configurado). */
-function ErpDemoLink({ className, children }: { className: string; children: ReactNode }) {
-  return ERP_DEMO_EXTERNAL
-    ? <a href={ERP_DEMO_HREF} target="_blank" rel="noopener noreferrer" className={className}>{children}</a>
-    : <a href={ERP_DEMO_HREF} className={className}>{children}</a>;
-}
-
 /** Etiqueta de producto: "Vértice Agency" o "Vértice ERP". */
 function ProductBadge({ product, dark = false }: { product: 'agency' | 'erp'; dark?: boolean }) {
   const label = product === 'agency' ? 'Agency' : 'ERP';
@@ -72,135 +66,297 @@ function ProductBadge({ product, dark = false }: { product: 'agency' | 'erp'; da
 }
 
 /* ------------------------------------------------------------------ */
-/* Hero: el "motor" del vértice                                        */
+/* Hero: Vértice ERP es el producto principal                           */
 /* ------------------------------------------------------------------ */
-function VertexEngine() {
-  const stageRef = useRef<HTMLDivElement>(null);
-
-  const onMove = (e: MouseEvent<HTMLDivElement>) => {
-    const el = stageRef.current;
-    if (!el) return;
-    const r = el.getBoundingClientRect();
-    const x = (e.clientX - r.left) / r.width - 0.5;
-    const y = (e.clientY - r.top) / r.height - 0.5;
-    el.style.transform = `rotateY(${x * 14}deg) rotateX(${-y * 14}deg)`;
-  };
-  const onLeave = () => { if (stageRef.current) stageRef.current.style.transform = ''; };
-
-  const satellites: { label: string; icon: ReactNode; pos: CSSProperties; tone: string }[] = [
-    { label: 'Proyectos', icon: <FolderKanban className="h-3.5 w-3.5" />, pos: { top: '2%', left: '50%' }, tone: 'text-navy-900' },
-    { label: 'Inventario', icon: <Boxes className="h-3.5 w-3.5" />, pos: { top: '74%', left: '93%' }, tone: 'text-cyan-600' },
-    { label: 'SUNAT', icon: <ReceiptText className="h-3.5 w-3.5" />, pos: { top: '74%', left: '7%' }, tone: 'text-brand-600' },
-  ];
-
-  return (
-    <div className="relative mx-auto aspect-square w-full max-w-[520px]" style={{ perspective: '1000px' }} onMouseMove={onMove} onMouseLeave={onLeave}>
-      <div ref={stageRef} className="relative h-full w-full transition-transform duration-300 ease-out" style={{ transformStyle: 'preserve-3d' }}>
-        <div className="absolute inset-[14%] rounded-full bg-white shadow-[0_40px_80px_-30px_rgb(7_42_91/.35)]" />
-        <div className="vx-pulse-ring h-[70%] w-[70%]" />
-        <div className="vx-pulse-ring h-[70%] w-[70%]" style={{ animationDelay: '2s' }} />
-        <div className="vx-orbit h-[96%] w-[96%]" />
-        <div className="vx-orbit vx-orbit--dashed vx-spin-rev h-[78%] w-[78%]" />
-
-        {/* Satélites que orbitan */}
-        <div className="vx-spin absolute inset-[2%]">
-          {satellites.map((s) => (
-            <div key={s.label} className="absolute -translate-x-1/2 -translate-y-1/2" style={s.pos}>
-              <div className="vx-counter-spin">
-                <span className={`flex items-center gap-1.5 rounded-full border border-slate-200 bg-white/90 px-3 py-1.5 text-[11px] font-semibold shadow-lg shadow-navy-900/10 backdrop-blur ${s.tone}`}>
-                  {s.icon}<span className="text-navy-950">{s.label}</span>
-                </span>
-              </div>
-            </div>
-          ))}
-        </div>
-
-        {/* Núcleo: isotipo */}
-        <div className="absolute inset-0 flex items-center justify-center" style={{ transform: 'translateZ(60px)' }}>
-          <div className="absolute h-[40%] w-[40%] rounded-full bg-gradient-to-br from-brand-200/70 via-cyan-100/60 to-transparent blur-2xl" />
-          <img src={asset('vertice-mark.png')} alt="Isotipo de Vértice" width={225} height={183} fetchPriority="high" className="vx-float vx-mark-glow relative h-auto w-[40%] select-none" draggable={false} />
-        </div>
-
-        {/* Tarjetas flotantes */}
-        <div className="absolute left-[-4%] top-[18%] hidden rounded-2xl border border-slate-200 bg-white/95 p-3 shadow-xl shadow-navy-900/10 backdrop-blur sm:block" style={{ transform: 'translateZ(90px)' }}>
-          <p className="vx-mono text-[10px] uppercase tracking-widest text-slate-400">Avance</p>
-          <p className="vx-display text-2xl font-bold text-navy-950">87<span className="text-brand-500">%</span></p>
-          <div className="mt-1.5 h-1 w-24 overflow-hidden rounded-full bg-slate-100"><div className="vx-bar h-full w-[87%] rounded-full bg-gradient-to-r from-brand-500 to-cyan-400" /></div>
-        </div>
-        <div className="absolute bottom-[10%] right-[-2%] hidden items-center gap-2.5 rounded-2xl border border-slate-200 bg-white/95 p-3 shadow-xl shadow-navy-900/10 backdrop-blur sm:flex" style={{ transform: 'translateZ(120px)' }}>
-          <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600"><CheckCircle2 className="h-4 w-4" /></span>
-          <div>
-            <p className="text-xs font-semibold text-navy-950">F001-000284 aceptada</p>
-            <p className="vx-mono text-[10px] text-slate-500">SUNAT · S/ 4,820.00</p>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 function Hero() {
   return (
-    <section className="vx-noise relative isolate overflow-hidden pb-24 pt-32 sm:pt-40">
+    <section className="vx-noise relative isolate overflow-hidden pb-24 pt-32 sm:pt-40 lg:pb-40">
       <div className="vx-dots absolute inset-0 -z-10 [mask-image:radial-gradient(ellipse_at_top,#000_30%,transparent_75%)]" />
       <div className="vx-aurora -z-10 left-[-10%] top-[-15%] h-[520px] w-[520px] bg-brand-200" />
       <div className="vx-aurora -z-10 right-[-12%] top-[5%] h-[460px] w-[460px] bg-cyan-200" style={{ animationDelay: '-6s' }} />
       <div className="vx-aurora -z-10 bottom-[-25%] left-[30%] h-[420px] w-[620px] bg-brand-100" style={{ animationDelay: '-12s' }} />
       <div className="vx-floor -z-10" />
 
-      <div className="relative mx-auto grid max-w-7xl items-center gap-14 px-4 sm:px-6 lg:grid-cols-[1.1fr_1fr] lg:px-8">
+      <div className="relative mx-auto grid max-w-7xl items-center gap-14 px-4 sm:px-6 lg:grid-cols-[1.08fr_1fr] lg:px-8">
         <div>
           <Reveal>
-            <a href="#erp" className="group inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white/80 py-1 pl-1 pr-3 text-xs text-slate-600 shadow-sm backdrop-blur hover:border-brand-300">
-              <span className="rounded-full bg-gradient-to-r from-brand-600 to-cyan-500 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-white">Nuevo</span>
-              Vértice ERP con facturación electrónica SUNAT
-              <ArrowRight className="h-3 w-3 transition group-hover:translate-x-0.5" />
-            </a>
+            <div className="flex flex-wrap items-center gap-2.5">
+              <ProductBadge product="erp" />
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-[11px] font-semibold text-emerald-700">
+                <BadgeCheck className="h-3.5 w-3.5" /> Facturación electrónica SUNAT
+              </span>
+            </div>
           </Reveal>
           <Reveal delay={100}>
             <h1 className="mt-7">
-              <span className="vx-mono block text-[11px] font-medium uppercase tracking-[0.22em] text-brand-600 sm:text-xs">ERP para agencias y empresas</span>
-              <span className="vx-display mt-4 block text-[2.7rem] font-bold leading-[1.02] text-navy-950 sm:text-6xl lg:text-[4.6rem]">
-                Lleva tu negocio<br />a su <span className="vx-gradient-text">punto más alto.</span>
+              <span className="vx-mono block text-[11px] font-medium uppercase tracking-[0.22em] text-brand-600 sm:text-xs">ERP para empresas en Perú</span>
+              <span className="vx-display mt-4 block text-[2.6rem] font-bold leading-[1.02] text-navy-950 sm:text-6xl lg:text-[4.3rem]">
+                Factura, vende y controla tu stock <span className="vx-gradient-text">sin Excel.</span>
               </span>
             </h1>
           </Reveal>
           <Reveal delay={200}>
             <p className="mt-6 max-w-xl text-base leading-relaxed text-slate-500 sm:text-lg">
-              Un solo vértice donde convergen tus{' '}
-              <span className="vx-rotator font-semibold text-navy-950">
-                <span className="vx-highlight">proyectos.</span><span className="vx-highlight">ventas.</span><span className="vx-highlight">inventarios.</span><span className="vx-highlight">finanzas.</span>
-              </span>
-            </p>
-            <p className="mt-3 max-w-xl text-sm leading-relaxed text-slate-500 sm:text-base">
-              Dos apps, una plataforma: <strong className="font-semibold text-navy-950">Vértice Agency</strong> para agencias que trabajan por proyectos y <strong className="font-semibold text-navy-950">Vértice ERP</strong> para empresas que venden, compran y facturan electrónicamente ante SUNAT.
+              Vértice ERP une facturación electrónica SUNAT, inventario, kardex, compras y cobranzas. Cada venta descuenta stock y queda en cuentas por cobrar: <strong className="font-semibold text-navy-950">tus números siempre cuadran.</strong>
             </p>
           </Reveal>
           <Reveal delay={300}>
             <div className="mt-9 flex flex-wrap items-center gap-3">
-              <a href={AGENCY_SIGNUP_HREF} className="group relative inline-flex items-center gap-2 overflow-hidden rounded-full bg-navy-950 px-7 py-3.5 text-sm font-semibold text-white shadow-[0_14px_30px_-10px_rgb(7_42_91/.6)] transition hover:bg-navy-900 hover:shadow-[0_18px_40px_-10px_rgb(21_115_255/.6)]">
-                Probar Vértice Agency
+              <ErpDemoLink className="group relative inline-flex items-center gap-2 overflow-hidden rounded-full bg-navy-950 px-7 py-3.5 text-sm font-semibold text-white shadow-[0_14px_30px_-10px_rgb(7_42_91/.6)] transition hover:bg-navy-900 hover:shadow-[0_18px_40px_-10px_rgb(21_115_255/.6)]">
+                Solicitar demo gratis
                 <span className="flex h-6 w-6 items-center justify-center rounded-full bg-gradient-to-br from-brand-500 to-cyan-400 text-white transition group-hover:rotate-[-45deg]"><ArrowRight className="h-3.5 w-3.5" /></span>
-              </a>
-              <ErpDemoLink className="inline-flex items-center gap-2 rounded-full border border-slate-300 bg-white/70 px-6 py-3.5 text-sm font-semibold text-navy-950 transition hover:border-navy-950">
-                Solicitar demo de ERP
               </ErpDemoLink>
+              <a href="#erp" className="inline-flex items-center gap-2 rounded-full border border-slate-300 bg-white/70 px-6 py-3.5 text-sm font-semibold text-navy-950 transition hover:border-navy-950">
+                Ver cómo funciona
+              </a>
             </div>
-            <p className="mt-4 text-xs text-slate-400">¿Ya tienes cuenta? <a href="/app/login" className="font-semibold text-navy-950 hover:text-brand-600">Inicia sesión</a></p>
+            <ul className="mt-5 flex flex-wrap gap-x-5 gap-y-2 text-xs text-slate-500">
+              {['Sin compromiso', 'Configuramos tu facturación', 'Te ayudamos a cargar tus productos'].map((t) => (
+                <li key={t} className="flex items-center gap-1.5"><CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />{t}</li>
+              ))}
+            </ul>
           </Reveal>
           <Reveal delay={400}>
             <dl className="mt-10 grid max-w-md grid-cols-3 divide-x divide-slate-200 border-y border-slate-200 py-4">
-              {[['2', 'apps'], ['SUNAT', 'vía Nubefact'], ['Red', 'de agencias']].map(([v, l]) => (
+              {[['SUNAT', 'vía Nubefact'], [String(ERP_MODULE_NAMES.length), 'módulos'], ['100%', 'web y en español']].map(([v, l]) => (
                 <div key={l} className="px-4 first:pl-0">
                   <dt className="vx-display text-2xl font-bold text-navy-950">{v}</dt>
                   <dd className="vx-mono mt-0.5 text-[10px] uppercase tracking-widest text-slate-400">{l}</dd>
                 </div>
               ))}
             </dl>
+            <p className="mt-6 text-xs text-slate-400">
+              ¿Tienes una agencia? Eso es <a href="#agency" className="font-semibold text-navy-950 underline decoration-brand-300 underline-offset-4 hover:text-brand-600">Vértice Agency</a>, otro producto.
+              {' '}¿Ya tienes cuenta? <a href="/app/login" className="font-semibold text-navy-950 hover:text-brand-600">Inicia sesión</a>
+            </p>
           </Reveal>
         </div>
-        <Reveal delay={200}><VertexEngine /></Reveal>
+        <Reveal delay={200} className="lg:pl-8"><InvoiceMock /></Reveal>
       </div>
+    </section>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Dos productos distintos: el visitante se ubica en segundos           */
+/* ------------------------------------------------------------------ */
+function ProductSwitch() {
+  return (
+    <section id="productos" aria-label="Elige tu producto" className="relative px-4 pb-8 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-7xl">
+        <Reveal className="mx-auto max-w-2xl text-center">
+          <Eyebrow>Dos productos distintos</Eyebrow>
+          <h2 className="vx-display mt-5 text-3xl font-bold leading-[1.05] text-navy-950 sm:text-4xl">
+            No son dos planes de lo mismo. <span className="vx-highlight">Elige según tu negocio.</span>
+          </h2>
+        </Reveal>
+
+        <div className="mt-12 grid gap-5 lg:grid-cols-5">
+          {/* ERP: protagonista */}
+          <Reveal className="h-full lg:col-span-3">
+            <article className="group relative flex h-full flex-col overflow-hidden rounded-[2rem] border border-navy-900 bg-gradient-to-br from-navy-950 via-navy-900 to-brand-700 p-7 text-white shadow-[0_40px_80px_-40px_rgb(7_42_91/.7)] sm:p-10">
+              <div className="absolute inset-0 opacity-[0.12] [background-image:linear-gradient(rgb(255_255_255/.5)_1px,transparent_1px),linear-gradient(90deg,rgb(255_255_255/.5)_1px,transparent_1px)] [background-size:40px_40px] [mask-image:radial-gradient(ellipse_at_top_right,#000_10%,transparent_65%)]" />
+              <div className="absolute -right-16 -top-16 h-64 w-64 rounded-full bg-cyan-400/30 blur-3xl transition duration-700 group-hover:scale-125" />
+              <div className="relative flex flex-1 flex-col">
+                <ProductBadge product="erp" dark />
+                <h3 className="vx-display mt-6 text-3xl font-bold leading-tight sm:text-4xl">Para empresas que <span className="bg-gradient-to-r from-cyan-300 to-brand-300 bg-clip-text text-transparent">venden y facturan.</span></h3>
+                <p className="vx-mono mt-6 text-[11px] uppercase tracking-[0.2em] text-cyan-300">Es para ti si…</p>
+                <ul className="mt-3 grid gap-2.5 sm:grid-cols-2">
+                  {['Emites facturas o boletas ante SUNAT', 'Manejas stock, almacén o productos', 'Compras a proveedores', 'Vendes al crédito y necesitas cobrar'].map((t) => (
+                    <li key={t} className="flex items-start gap-2.5 text-sm text-white/85">
+                      <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-cyan-400/15 text-cyan-300 ring-1 ring-cyan-300/30"><Check className="h-3 w-3" /></span>{t}
+                    </li>
+                  ))}
+                </ul>
+                <div className="mt-auto flex flex-wrap items-center gap-3 pt-9">
+                  <ErpDemoLink className="group/btn inline-flex items-center gap-2 rounded-full bg-white px-6 py-3 text-sm font-semibold text-navy-950 transition hover:bg-cyan-300">
+                    Solicitar demo gratis <ArrowRight className="h-4 w-4 transition group-hover/btn:translate-x-0.5" />
+                  </ErpDemoLink>
+                  <a href="#erp" className="inline-flex items-center gap-1.5 rounded-full px-4 py-3 text-sm font-semibold text-white/90 hover:text-cyan-300">Ver Vértice ERP <ArrowUpRight className="h-3.5 w-3.5" /></a>
+                </div>
+              </div>
+            </article>
+          </Reveal>
+
+          {/* Agency: producto aparte */}
+          <Reveal delay={120} className="h-full lg:col-span-2">
+            <article onMouseMove={trackSpot} className="vx-spot group relative flex h-full flex-col overflow-hidden rounded-[2rem] border border-slate-200 bg-white p-7 shadow-[0_30px_60px_-35px_rgb(7_42_91/.35)] transition duration-500 hover:border-brand-300 sm:p-9">
+              <div className="relative flex flex-1 flex-col">
+                <ProductBadge product="agency" />
+                <h3 className="vx-display mt-6 text-2xl font-bold leading-tight text-navy-950 sm:text-3xl">Para agencias que <span className="vx-gradient-text">trabajan por proyectos.</span></h3>
+                <p className="vx-mono mt-6 text-[11px] uppercase tracking-[0.2em] text-brand-600">Es para ti si…</p>
+                <ul className="mt-3 space-y-2.5">
+                  {['Vendes proyectos o servicios a clientes', 'Coordinas un equipo creativo o de desarrollo', 'Quieres que tus clientes vean su avance'].map((t) => (
+                    <li key={t} className="flex items-start gap-2.5 text-sm text-slate-700">
+                      <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-brand-50 text-brand-600 ring-1 ring-brand-100"><Check className="h-3 w-3" /></span>{t}
+                    </li>
+                  ))}
+                </ul>
+                <div className="mt-auto flex flex-wrap items-center gap-2 pt-9">
+                  <a href={AGENCY_SIGNUP_HREF} className="group/btn inline-flex items-center gap-2 rounded-full border border-slate-300 px-5 py-2.5 text-sm font-semibold text-navy-950 transition hover:border-navy-950">
+                    Crear cuenta gratis <ArrowRight className="h-4 w-4 transition group-hover/btn:translate-x-0.5" />
+                  </a>
+                  <a href="#agency" className="inline-flex items-center gap-1.5 rounded-full px-3 py-2.5 text-sm font-semibold text-slate-500 hover:text-brand-600">Ver Agency <ArrowUpRight className="h-3.5 w-3.5" /></a>
+                </div>
+              </div>
+            </article>
+          </Reveal>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* ERP: problema → solución                                             */
+/* ------------------------------------------------------------------ */
+function ErpPains() {
+  const pains = [
+    {
+      icon: <FileSpreadsheet className="h-5 w-5" />,
+      t: 'El inventario no cuadra',
+      d: 'El Excel dice una cosa y el almacén otra. Te enteras cuando ya vendiste lo que no tenías.',
+      fix: 'Cada compra y cada venta mueven el stock y el kardex solos.',
+    },
+    {
+      icon: <ReceiptText className="h-5 w-5" />,
+      t: 'Facturas en un lado, ventas en otro',
+      d: 'Emites en un portal, registras en una hoja y copias los mismos datos dos veces.',
+      fix: 'La factura sale de la venta y llega a SUNAT vía Nubefact.',
+    },
+    {
+      icon: <Wallet className="h-5 w-5" />,
+      t: 'No sabes quién te debe',
+      d: 'Las cobranzas viven en la memoria de alguien y los vencimientos se pasan.',
+      fix: 'Cuentas por cobrar con saldos y vencimientos por cliente.',
+    },
+  ];
+  return (
+    <section className="relative py-24 sm:py-32">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <Reveal className="max-w-3xl">
+          <Eyebrow>¿Te suena?</Eyebrow>
+          <h2 className="vx-display mt-5 text-4xl font-bold leading-[1.05] text-navy-950 sm:text-5xl">
+            Si tu empresa vive entre Excel y portales, <span className="text-slate-300">esto te pasa.</span>
+          </h2>
+        </Reveal>
+        <div className="mt-14 grid gap-5 md:grid-cols-3">
+          {pains.map((p, i) => (
+            <Reveal key={p.t} delay={i * 120} className="h-full">
+              <article className="flex h-full flex-col overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
+                <div className="flex-1 p-6 sm:p-7">
+                  <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-rose-50 text-rose-500 ring-1 ring-rose-100">{p.icon}</span>
+                  <h3 className="vx-display mt-5 text-xl font-bold text-navy-950">{p.t}</h3>
+                  <p className="mt-2 text-sm leading-relaxed text-slate-500">{p.d}</p>
+                </div>
+                <div className="flex items-start gap-2.5 border-t border-emerald-100 bg-emerald-50/60 px-6 py-4 text-sm font-medium text-emerald-800 sm:px-7">
+                  <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500" />
+                  <span><span className="font-semibold">Con Vértice ERP:</span> {p.fix}</span>
+                </div>
+              </article>
+            </Reveal>
+          ))}
+        </div>
+        <Reveal className="mt-10 flex justify-center">
+          <ErpDemoLink className="group inline-flex items-center gap-2 rounded-full bg-navy-950 px-7 py-3.5 text-sm font-semibold text-white transition hover:bg-brand-600">
+            Quiero verlo con mis datos <ArrowRight className="h-4 w-4 transition group-hover:translate-x-0.5" />
+          </ErpDemoLink>
+        </Reveal>
+      </div>
+    </section>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* ERP: cómo empezar (reduce la fricción de pedir la demo)              */
+/* ------------------------------------------------------------------ */
+function ErpOnboarding() {
+  const steps = [
+    { icon: <MessageSquare className="h-5 w-5" />, t: 'Agenda tu demo', d: 'Nos cuentas cómo vendes, compras y facturas hoy. Te mostramos Vértice ERP con ese flujo.' },
+    { icon: <ReceiptText className="h-5 w-5" />, t: 'Dejamos todo listo', d: 'Configuramos tu facturación electrónica y te ayudamos a cargar tus productos y clientes.' },
+    { icon: <BadgeCheck className="h-5 w-5" />, t: 'Empiezas a facturar', d: 'Tu equipo vende, compra y cobra desde un solo lugar, sin instalar nada.' },
+  ];
+  return (
+    <section id="empezar" className="relative scroll-mt-24 border-y border-slate-200 bg-white py-24 sm:py-32">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <Reveal className="flex flex-col items-start justify-between gap-5 sm:flex-row sm:items-end">
+          <div>
+            <Eyebrow>Cómo empezar con Vértice ERP</Eyebrow>
+            <h2 className="vx-display mt-5 text-4xl font-bold leading-[1.05] text-navy-950 sm:text-5xl">No empiezas solo. <span className="vx-gradient-text">Te acompañamos.</span></h2>
+          </div>
+          <ul className="flex flex-wrap gap-2">
+            {['Sin instalar nada', 'En español', 'Ayuda en la puesta en marcha'].map((t) => (
+              <li key={t} className="vx-mono inline-flex items-center gap-1.5 rounded-full bg-slate-50 px-3 py-1 text-[11px] text-slate-500 ring-1 ring-slate-200">
+                <ShieldCheck className="h-3 w-3 text-brand-600" />{t}
+              </li>
+            ))}
+          </ul>
+        </Reveal>
+        <div className="relative mt-14 grid gap-10 md:grid-cols-3">
+          <div className="absolute left-0 right-0 top-6 hidden h-px bg-gradient-to-r from-navy-900 via-brand-500 to-cyan-300 md:block" />
+          {steps.map((s, i) => (
+            <Reveal key={s.t} delay={i * 150}>
+              <div className="relative">
+                <span className="relative z-10 flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-navy-950 to-brand-600 text-white shadow-lg shadow-brand-500/30">{s.icon}</span>
+                <p className="vx-display vx-outline-text mt-8 text-7xl font-bold leading-none">0{i + 1}</p>
+                <h3 className="vx-display mt-3 text-2xl font-bold text-navy-950">{s.t}</h3>
+                <p className="mt-2 max-w-xs text-sm leading-relaxed text-slate-500">{s.d}</p>
+              </div>
+            </Reveal>
+          ))}
+        </div>
+
+        <Reveal className="mt-16">
+          <div id="erp-demo" className="relative scroll-mt-24 overflow-hidden rounded-[2rem] bg-gradient-to-br from-navy-950 via-navy-900 to-brand-700 px-7 py-10 text-white sm:px-12 sm:py-12">
+            <div className="absolute -right-10 -top-16 h-64 w-64 rounded-full bg-cyan-400/25 blur-3xl" />
+            <div className="relative flex flex-col items-start justify-between gap-6 md:flex-row md:items-center">
+              <div>
+                <ProductBadge product="erp" dark />
+                <p className="vx-display mt-4 max-w-xl text-2xl font-bold leading-tight sm:text-3xl">Te mostramos Vértice ERP con los datos de tu empresa.</p>
+                <p className="mt-2 max-w-lg text-sm text-white/70">Una demo sin compromiso: revisamos tus procesos y te decimos cómo quedaría tu operación en Vértice ERP.</p>
+              </div>
+              <ErpDemoLink className="group inline-flex shrink-0 items-center gap-2 rounded-full bg-white px-7 py-3.5 text-sm font-semibold text-navy-950 transition hover:bg-cyan-300">
+                Solicitar demo gratis <ArrowUpRight className="h-4 w-4 transition group-hover:rotate-45" />
+              </ErpDemoLink>
+            </div>
+          </div>
+        </Reveal>
+      </div>
+    </section>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Separador: a partir de aquí empieza otro producto                    */
+/* ------------------------------------------------------------------ */
+function AgencyDivider() {
+  return (
+    <section id="agency" className="relative scroll-mt-24 px-4 pt-24 sm:px-6 sm:pt-32 lg:px-8">
+      <Reveal className="mx-auto max-w-7xl">
+        <div className="relative overflow-hidden rounded-[2rem] border border-slate-200 bg-gradient-to-br from-white via-white to-brand-50/70 p-7 shadow-[0_30px_60px_-35px_rgb(7_42_91/.35)] sm:p-10 lg:p-12">
+          <div className="vx-dots absolute inset-0 [mask-image:radial-gradient(ellipse_at_right,#000_10%,transparent_65%)]" />
+          <div className="relative flex flex-col items-start justify-between gap-8 lg:flex-row lg:items-end">
+            <div className="max-w-2xl">
+              <span className="vx-mono inline-flex items-center gap-2 rounded-full bg-navy-950 px-3 py-1 text-[10px] font-medium uppercase tracking-[0.2em] text-white">
+                <span className="h-1.5 w-1.5 rounded-full bg-cyan-400" /> Otro producto
+              </span>
+              <div className="mt-5"><ProductBadge product="agency" /></div>
+              <h2 className="vx-display mt-5 text-3xl font-bold leading-[1.05] text-navy-950 sm:text-5xl">
+                El sistema para <span className="vx-gradient-text">agencias.</span>
+              </h2>
+              <p className="mt-4 text-base leading-relaxed text-slate-500">
+                Si trabajas por proyectos para clientes (agencias de marketing, estudios de diseño, software factories o consultoras), este es tu Vértice: proyectos, CRM, cotizaciones, cobros y rentabilidad, en red con aliados y clientes. Es una app distinta de Vértice ERP.
+              </p>
+            </div>
+            <div className="flex shrink-0 flex-col items-start gap-3 lg:items-end">
+              <a href={AGENCY_SIGNUP_HREF} className="group inline-flex items-center gap-2 rounded-full bg-navy-950 px-6 py-3 text-sm font-semibold text-white transition hover:bg-brand-600">
+                Crear cuenta gratis <ArrowRight className="h-4 w-4 transition group-hover:translate-x-0.5" />
+              </a>
+              <a href="#erp" className="text-xs font-semibold text-slate-400 hover:text-navy-950">¿Buscabas el ERP para tu empresa? ↑ Volver a Vértice ERP</a>
+            </div>
+          </div>
+        </div>
+      </Reveal>
     </section>
   );
 }
@@ -288,107 +444,6 @@ function AgencyLogos() {
               </div>
             )}
           </div>
-        </div>
-      </div>
-    </section>
-  );
-}
-
-/* ------------------------------------------------------------------ */
-function Marquee() {
-  const words = ['Proyectos', 'Gantt', 'CRM', 'Cotizaciones', 'Facturación SUNAT', 'Inventario', 'Kardex', 'Compras', 'Asistencias', 'Rentabilidad'];
-  const row = [...words, ...words];
-  return (
-    <div className="relative -rotate-1 border-y border-slate-200 bg-white py-6 shadow-[0_10px_40px_-20px_rgb(7_42_91/.25)]">
-      <div className="pointer-events-none absolute inset-y-0 left-0 z-10 w-24 bg-gradient-to-r from-white to-transparent" />
-      <div className="pointer-events-none absolute inset-y-0 right-0 z-10 w-24 bg-gradient-to-l from-white to-transparent" />
-      <div className="overflow-hidden">
-        <div className="vx-marquee">
-          {row.map((w, i) => (
-            <span key={i} className="vx-display flex items-center gap-8 px-4 text-4xl font-bold sm:text-6xl">
-              <span className={i % 2 ? 'vx-outline-text' : 'text-navy-950'}>{w}</span>
-              <img src={asset('vertice-mark.png')} alt="" width={225} height={183} loading="lazy" className="h-6 w-auto sm:h-8" />
-            </span>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-
-/* ------------------------------------------------------------------ */
-/* Las dos apps de Vértice                                              */
-/* ------------------------------------------------------------------ */
-function Apps() {
-  return (
-    <section id="apps" className="relative py-24 sm:py-32">
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <Reveal className="mx-auto max-w-2xl text-center">
-          <Eyebrow>Dos apps, un vértice</Eyebrow>
-          <h2 className="vx-display mt-5 text-4xl font-bold leading-[1.05] text-navy-950 sm:text-5xl">
-            Elige el Vértice <span className="vx-highlight">hecho para ti.</span>
-          </h2>
-          <p className="mt-5 text-base leading-relaxed text-slate-500 sm:text-lg">
-            Cada app está diseñada para una forma de trabajar distinta. La misma plataforma, la misma seguridad, el mismo equipo detrás.
-          </p>
-        </Reveal>
-
-        <div className="mt-16 grid gap-5 lg:grid-cols-2">
-          {/* Agency */}
-          <Reveal className="h-full">
-            <article onMouseMove={trackSpot} className="vx-spot group relative flex h-full flex-col overflow-hidden rounded-[2rem] border border-slate-200 bg-white p-7 shadow-[0_30px_60px_-35px_rgb(7_42_91/.35)] transition duration-500 hover:-translate-y-1 hover:border-brand-300 sm:p-10">
-              <div className="absolute -right-20 -top-20 h-64 w-64 rounded-full bg-gradient-to-br from-brand-200 to-cyan-200 opacity-50 blur-3xl transition duration-700 group-hover:scale-125" />
-              <div className="relative flex flex-1 flex-col">
-                <ProductBadge product="agency" />
-                <h3 className="vx-display mt-6 text-3xl font-bold leading-tight text-navy-950 sm:text-4xl">El ERP para <span className="vx-gradient-text">agencias.</span></h3>
-                <p className="mt-4 max-w-md text-sm leading-relaxed text-slate-500 sm:text-base">
-                  Para agencias, estudios, consultoras y software factories que venden su tiempo por proyectos: del primer contacto a la factura cobrada.
-                </p>
-                <ul className="mt-7 grid gap-2.5 sm:grid-cols-2">
-                  {['Proyectos con Kanban y Gantt', 'CRM y cotizaciones en PDF', 'Facturación, caja y rentabilidad', 'Red de agencias y portal de clientes'].map((t) => (
-                    <li key={t} className="flex items-start gap-2.5 text-sm text-slate-700">
-                      <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-brand-50 text-brand-600 ring-1 ring-brand-100"><Check className="h-3 w-3" /></span>{t}
-                    </li>
-                  ))}
-                </ul>
-                <div className="mt-auto flex flex-wrap items-center gap-3 pt-9">
-                  <a href={AGENCY_SIGNUP_HREF} className="group/btn inline-flex items-center gap-2 rounded-full bg-navy-950 px-6 py-3 text-sm font-semibold text-white transition hover:bg-brand-600">
-                    Empezar gratis <ArrowRight className="h-4 w-4 transition group-hover/btn:translate-x-0.5" />
-                  </a>
-                  <a href="#agency" className="inline-flex items-center gap-1.5 rounded-full px-4 py-3 text-sm font-semibold text-navy-950 hover:text-brand-600">Ver módulos <ArrowUpRight className="h-3.5 w-3.5" /></a>
-                </div>
-              </div>
-            </article>
-          </Reveal>
-
-          {/* ERP */}
-          <Reveal delay={120} className="h-full">
-            <article className="group relative flex h-full flex-col overflow-hidden rounded-[2rem] border border-navy-900 bg-gradient-to-br from-navy-950 via-navy-900 to-brand-700 p-7 text-white shadow-[0_40px_80px_-40px_rgb(7_42_91/.7)] transition duration-500 hover:-translate-y-1 sm:p-10">
-              <div className="absolute inset-0 opacity-[0.12] [background-image:linear-gradient(rgb(255_255_255/.5)_1px,transparent_1px),linear-gradient(90deg,rgb(255_255_255/.5)_1px,transparent_1px)] [background-size:40px_40px] [mask-image:radial-gradient(ellipse_at_top_right,#000_10%,transparent_65%)]" />
-              <div className="absolute -right-16 -top-16 h-64 w-64 rounded-full bg-cyan-400/30 blur-3xl transition duration-700 group-hover:scale-125" />
-              <div className="relative flex flex-1 flex-col">
-                <ProductBadge product="erp" dark />
-                <h3 className="vx-display mt-6 text-3xl font-bold leading-tight sm:text-4xl">El ERP para <span className="bg-gradient-to-r from-cyan-300 to-brand-300 bg-clip-text text-transparent">tu empresa.</span></h3>
-                <p className="mt-4 max-w-md text-sm leading-relaxed text-white/70 sm:text-base">
-                  Para empresas que venden productos o servicios y necesitan controlar inventario, compras, cobranzas y su facturación electrónica.
-                </p>
-                <ul className="mt-7 grid gap-2.5 sm:grid-cols-2">
-                  {['Facturación electrónica SUNAT', 'Inventario, kardex y compras', 'Cuentas por cobrar y por pagar', 'Colaboradores y asistencias'].map((t) => (
-                    <li key={t} className="flex items-start gap-2.5 text-sm text-white/85">
-                      <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-cyan-400/15 text-cyan-300 ring-1 ring-cyan-300/30"><Check className="h-3 w-3" /></span>{t}
-                    </li>
-                  ))}
-                </ul>
-                <div className="mt-auto flex flex-wrap items-center gap-3 pt-9">
-                  <ErpDemoLink className="group/btn inline-flex items-center gap-2 rounded-full bg-white px-6 py-3 text-sm font-semibold text-navy-950 transition hover:bg-cyan-300">
-                    Solicitar demo <ArrowRight className="h-4 w-4 transition group-hover/btn:translate-x-0.5" />
-                  </ErpDemoLink>
-                  <a href="#erp" className="inline-flex items-center gap-1.5 rounded-full px-4 py-3 text-sm font-semibold text-white/90 hover:text-cyan-300">Ver módulos <ArrowUpRight className="h-3.5 w-3.5" /></a>
-                </div>
-              </div>
-            </article>
-          </Reveal>
         </div>
       </div>
     </section>
@@ -487,6 +542,51 @@ function InvoiceMock() {
   );
 }
 
+/** Cuentas por cobrar y alerta de stock: lo que el dueño mira cada mañana. */
+function ControlMock() {
+  const rows = [
+    { c: 'Comercial Andina S.A.C.', d: 'F001-000284', m: '3,180.00', s: 'Por vencer', tone: 'bg-amber-50 text-amber-700 ring-amber-200' },
+    { c: 'Distribuidora Norte E.I.R.L.', d: 'F001-000279', m: '1,240.00', s: 'Vencida', tone: 'bg-rose-50 text-rose-600 ring-rose-200' },
+    { c: 'Inversiones Sol S.A.', d: 'B001-001532', m: '420.00', s: 'Pagada', tone: 'bg-emerald-50 text-emerald-700 ring-emerald-200' },
+  ];
+  return (
+    <div className="relative">
+      <div className="absolute -inset-6 rounded-[2.5rem] bg-gradient-to-br from-brand-100 via-cyan-50 to-transparent blur-2xl" />
+      <div className="relative rounded-3xl border border-slate-200 bg-white p-5 shadow-[0_40px_80px_-40px_rgb(7_42_91/.45)] sm:p-6">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <p className="vx-mono text-[10px] uppercase tracking-[0.2em] text-slate-400">Cuentas por cobrar</p>
+            <p className="vx-display mt-1 text-2xl font-bold text-navy-950">S/ 4,420.00</p>
+            <p className="text-[11px] text-slate-500">pendiente de cobro</p>
+          </div>
+          <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-brand-50 text-brand-600 ring-1 ring-brand-100"><Wallet className="h-4 w-4" /></span>
+        </div>
+        <ul className="mt-5 divide-y divide-slate-100 text-[12px]">
+          {rows.map((r) => (
+            <li key={r.d} className="flex items-center justify-between gap-3 py-2.5">
+              <span className="min-w-0">
+                <span className="block truncate font-semibold text-navy-950">{r.c}</span>
+                <span className="vx-mono text-[10px] text-slate-400">{r.d}</span>
+              </span>
+              <span className="flex shrink-0 items-center gap-2">
+                <span className="vx-mono text-navy-950">S/ {r.m}</span>
+                <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ring-1 ${r.tone}`}>{r.s}</span>
+              </span>
+            </li>
+          ))}
+        </ul>
+      </div>
+      <div className="relative mt-4 flex items-center gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-xl shadow-navy-900/10 sm:absolute sm:-bottom-16 sm:-right-6 sm:mt-0 sm:w-72">
+        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-amber-50 text-amber-600 ring-1 ring-amber-200"><Package className="h-4 w-4" /></span>
+        <div>
+          <p className="text-xs font-semibold text-navy-950">Stock bajo: Mouse inalámbrico</p>
+          <p className="vx-mono text-[10px] text-slate-500">Quedan 3 u. · Generar compra</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function Erp() {
   const flow = ['Cotización', 'Factura', 'SUNAT', 'Cobro'];
   return (
@@ -519,7 +619,7 @@ function Erp() {
               </ErpDemoLink>
             </div>
           </Reveal>
-          <Reveal delay={150} className="lg:pl-10"><InvoiceMock /></Reveal>
+          <Reveal delay={150} className="lg:pl-10"><ControlMock /></Reveal>
         </div>
 
         {/* Módulos agrupados */}
@@ -561,22 +661,6 @@ function Erp() {
           </ul>
         </Reveal>
 
-        {/* Demo */}
-        <Reveal className="mt-16">
-          <div id="erp-demo" className="relative scroll-mt-24 overflow-hidden rounded-[2rem] bg-gradient-to-br from-navy-950 via-navy-900 to-brand-700 px-7 py-10 text-white sm:px-12 sm:py-12">
-            <div className="absolute -right-10 -top-16 h-64 w-64 rounded-full bg-cyan-400/25 blur-3xl" />
-            <div className="relative flex flex-col items-start justify-between gap-6 md:flex-row md:items-center">
-              <div>
-                <ProductBadge product="erp" dark />
-                <p className="vx-display mt-4 max-w-xl text-2xl font-bold leading-tight sm:text-3xl">Te mostramos Vértice ERP con los datos de tu empresa.</p>
-                <p className="mt-2 max-w-lg text-sm text-white/70">Agenda una demo: revisamos tus procesos, configuramos tu facturación electrónica y migramos tus productos.</p>
-              </div>
-              <ErpDemoLink className="group inline-flex shrink-0 items-center gap-2 rounded-full bg-white px-7 py-3.5 text-sm font-semibold text-navy-950 transition hover:bg-cyan-300">
-                Solicitar demo <ArrowUpRight className="h-4 w-4 transition group-hover:rotate-45" />
-              </ErpDemoLink>
-            </div>
-          </div>
-        </Reveal>
       </div>
     </section>
   );
@@ -765,70 +849,6 @@ function Network() {
 }
 
 /* ------------------------------------------------------------------ */
-/* Las tres aristas del isotipo = los tres pilares del producto         */
-/* ------------------------------------------------------------------ */
-function Edges() {
-  const edges = [
-    {
-      n: '01', title: 'Operar', blob: 'from-navy-200 to-navy-400', accent: 'bg-navy-900', hover: 'hover:border-navy-300',
-      items: ['Kanban y Gantt', 'Subtareas y dependencias', 'Plantillas de proyecto'],
-    },
-    {
-      n: '02', title: 'Vender', blob: 'from-brand-200 to-brand-400', accent: 'bg-brand-500', hover: 'hover:border-brand-300',
-      items: ['Pipeline comercial', 'Cotizaciones en PDF', 'De cotización a proyecto'],
-    },
-    {
-      n: '03', title: 'Cobrar', blob: 'from-cyan-100 to-cyan-300', accent: 'bg-cyan-400', hover: 'hover:border-cyan-300',
-      items: ['Facturas y abonos', 'Caja y egresos', 'Rentabilidad por proyecto'],
-    },
-  ];
-  return (
-    <section id="aristas" className="relative py-28 sm:py-36">
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <div className="max-w-3xl">
-          <Reveal>
-            <Eyebrow>Tres aristas, un vértice</Eyebrow>
-            <h2 className="vx-display mt-5 text-4xl font-bold leading-[1.05] text-navy-950 sm:text-5xl lg:text-6xl">
-              Proyectos, ventas y cobros de tu agencia <span className="text-slate-300">convergen aquí.</span>
-            </h2>
-            <p className="mt-6 max-w-2xl text-base leading-relaxed text-slate-500 sm:text-lg">
-              Vértice Agency une la gestión de proyectos, el CRM y la facturación de tu agencia: del primer contacto con el cliente a la factura cobrada y la rentabilidad de cada proyecto.
-            </p>
-          </Reveal>
-        </div>
-
-        <div className="mt-16 grid gap-5 md:grid-cols-3">
-          {edges.map((e, i) => (
-            <div key={e.n} className={i === 1 ? 'md:translate-y-10' : i === 2 ? 'md:translate-y-20' : ''}>
-              <Reveal delay={i * 140} className="h-full">
-                <article className={`group vx-edge relative h-full overflow-hidden border border-slate-200 bg-white p-7 shadow-sm transition duration-500 hover:-translate-y-1 hover:shadow-xl ${e.hover}`}>
-                  <div className={`absolute -right-16 -top-16 h-48 w-48 rounded-full bg-gradient-to-br ${e.blob} opacity-50 blur-2xl transition duration-700 group-hover:scale-150 group-hover:opacity-80`} />
-                  <span className={`absolute left-0 top-0 h-1 w-16 ${e.accent} transition-all duration-500 group-hover:w-full`} />
-                  <div className="relative">
-                    <div className="flex items-center justify-between">
-                      <span className="vx-mono text-xs text-slate-400">{e.n} / 03</span>
-                      <span className={`h-2.5 w-2.5 rounded-full ${e.accent}`} />
-                    </div>
-                    <h3 className="vx-display mt-10 text-5xl font-bold text-navy-950">{e.title}</h3>
-                    <ul className="mt-7 space-y-2.5 border-t border-slate-100 pt-5">
-                      {e.items.map((it) => (
-                        <li key={it} className="flex items-center gap-2.5 text-sm text-slate-700">
-                          <span className={`h-1 w-3 rounded-full ${e.accent}`} />{it}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                </article>
-              </Reveal>
-            </div>
-          ))}
-        </div>
-      </div>
-    </section>
-  );
-}
-
-/* ------------------------------------------------------------------ */
 /* Bento con mini-interfaces                                           */
 /* ------------------------------------------------------------------ */
 function BentoCard({ className = '', children, delay = 0 }: { className?: string; children: ReactNode; delay?: number }) {
@@ -974,6 +994,11 @@ function Steps() {
             </Reveal>
           ))}
         </div>
+        <Reveal className="mt-12">
+          <a href={AGENCY_SIGNUP_HREF} className="group inline-flex items-center gap-2 rounded-full bg-navy-950 px-6 py-3 text-sm font-semibold text-white transition hover:bg-brand-600">
+            Crear mi agencia gratis <ArrowRight className="h-4 w-4 transition group-hover:translate-x-0.5" />
+          </a>
+        </Reveal>
       </div>
     </section>
   );
@@ -1051,26 +1076,36 @@ function Compare() {
 }
 
 /* ------------------------------------------------------------------ */
-export const LANDING_TITLE = 'Vértice | ERP para agencias y empresas con facturación SUNAT';
-export const LANDING_DESCRIPTION = 'Vértice Agency gestiona proyectos, CRM y cobros de tu agencia. Vértice ERP lleva inventario, compras y facturación electrónica SUNAT de tu empresa.';
+export const LANDING_TITLE = 'Vértice ERP | Facturación SUNAT, inventario y cobranzas';
+export const LANDING_DESCRIPTION = 'Vértice ERP: facturación electrónica SUNAT, inventario, kardex, compras y cobranzas para tu empresa. Y Vértice Agency, el sistema para agencias.';
 
-export const LANDING_FAQS: { q: string; a: string }[] = [
-  { q: '¿Qué es Vértice?', a: 'Vértice es una plataforma con dos apps: Vértice Agency, el ERP para agencias que reúne proyectos, tareas, CRM, cotizaciones, facturación, caja y rentabilidad; y Vértice ERP, para empresas que necesitan gestionar clientes, productos, inventario, compras, cobranzas y facturación electrónica ante SUNAT.' },
-  { q: '¿Qué diferencia hay entre Vértice Agency y Vértice ERP?', a: 'Vértice Agency está pensado para negocios que trabajan por proyectos para clientes (agencias, estudios, consultoras, software factories). Vértice ERP está pensado para empresas que venden productos o servicios y necesitan inventario, kardex, compras, cuentas por cobrar y por pagar, colaboradores, asistencias y facturación electrónica.' },
-  { q: '¿Qué módulos incluye Vértice ERP?', a: 'Clientes, colaboradores, asistencias, productos, inventario, kardex, compras, proveedores, cuentas por pagar, cotizaciones, facturación electrónica, notas de crédito y débito, cuentas por cobrar y reportes.' },
-  { q: '¿Vértice ERP emite comprobantes electrónicos válidos ante SUNAT?', a: 'Sí. Vértice ERP emite facturas, boletas y notas de crédito y débito electrónicas que se envían a SUNAT a través de Nubefact, y conserva el XML, la constancia de recepción (CDR) y el PDF de cada comprobante.' },
-  { q: '¿Cómo empiezo con Vértice ERP?', a: 'Solicita una demo: revisamos los procesos de tu empresa, configuramos tu facturación electrónica y te ayudamos a cargar tus productos y clientes.' },
-  { q: '¿Qué debe tener un software de gestión de proyectos para agencias?', a: 'Además de tareas en Kanban y Gantt, una agencia necesita conectar la venta con la entrega y el cobro: CRM, cotizaciones, facturación con pagos parciales y rentabilidad por proyecto, más un acceso limitado para que los clientes sigan su avance. Vértice Agency reúne todo eso en una sola plataforma.' },
-  { q: '¿Vértice Agency incluye diagrama de Gantt?', a: 'Sí. Incluye diagrama de Gantt online con dependencias, hitos y camino crítico, y las mismas tareas se pueden ver en Kanban o en lista.' },
-  { q: '¿Puedo saber si un proyecto es rentable?', a: 'Sí. Vértice Agency cruza los ingresos facturados de cada proyecto con sus costos y egresos para mostrarte el margen real de cada proyecto.' },
-  { q: '¿Cómo me conecto con otras agencias?', a: 'Cada agencia tiene un código de conexión. La otra agencia lo introduce y tú aceptas la solicitud. Luego compartes solo los proyectos que quieras, con acceso de Ver o Colaborar, y la agencia invitada elige qué miembros participan. El presupuesto y las facturas nunca se comparten.' },
-  { q: '¿Mis clientes pueden ver sus proyectos?', a: 'Sí. Invitas a tu cliente con un enlace de un solo uso que caduca en 7 días. Con el rol cliente ve su dashboard, sus tareas y el calendario, y puede abrir tickets, pero no ve comentarios internos, checklists ni finanzas.' },
-  { q: '¿Puedo crear cotizaciones y facturas?', a: 'Sí. Generas cotizaciones en PDF con tu marca, les haces seguimiento, las conviertes en proyectos y registras facturas con pagos parciales, cuentas por pagar y caja.' },
-  { q: '¿Cómo se protege la información de mi negocio?', a: 'Los datos están aislados por cuenta, el acceso se controla con roles y permisos por módulo, y puedes activar la verificación en dos pasos (2FA) o iniciar sesión con Google.' },
-  { q: '¿Vértice Agency se integra con otras herramientas?', a: 'Sí. Ofrece una API con tokens por agencia y webhooks para enviar eventos a tus sistemas, además de exportación de datos.' },
-  { q: '¿En qué se diferencia Vértice Agency de ClickUp, Trello, Asana, Odoo o monday.com?', a: 'Vértice Agency está pensado para agencias: además de proyectos con Kanban y Gantt, incluye CRM, cotizaciones en PDF, facturación y rentabilidad, y permite compartir proyectos entre agencias conectadas y dar acceso limitado a clientes, sin exponer tus finanzas.' },
-  { q: '¿Cuánto cuesta empezar?', a: 'Vértice Agency se crea gratis y se configura en minutos, sin instalar nada. Para Vértice ERP solicita una demo y te preparamos una propuesta según el tamaño de tu empresa.' },
-  { q: '¿Vértice está en español?', a: 'Sí. Las dos apps son plataformas web en español: interfaz, cotizaciones, comprobantes y comunicación con tus clientes, sin instalar nada.' },
+type FaqGroup = 'general' | 'erp' | 'agency';
+
+export const LANDING_FAQS: { q: string; a: string; group: FaqGroup }[] = [
+  { group: 'general', q: '¿Qué es Vértice?', a: 'Vértice desarrolla dos productos distintos: Vértice ERP, para empresas que necesitan facturación electrónica ante SUNAT, inventario, kardex, compras, cobranzas, colaboradores y asistencias; y Vértice Agency, para agencias que trabajan por proyectos y necesitan gestionar tareas, CRM, cotizaciones, cobros y rentabilidad.' },
+  { group: 'general', q: '¿Qué diferencia hay entre Vértice ERP y Vértice Agency?', a: 'Resuelven problemas diferentes. Vértice ERP es para empresas que venden productos o servicios y necesitan inventario, compras, cuentas por cobrar y por pagar y facturación electrónica. Vértice Agency es para negocios que trabajan por proyectos para clientes (agencias, estudios, consultoras, software factories). No son planes del mismo producto: eliges el que corresponde a tu negocio.' },
+  { group: 'erp', q: '¿Qué módulos incluye Vértice ERP?', a: 'Clientes, colaboradores, asistencias, productos, inventario, kardex, compras, proveedores, cuentas por pagar, cotizaciones, facturación electrónica, notas de crédito y débito, cuentas por cobrar y reportes.' },
+  { group: 'erp', q: '¿Vértice ERP emite comprobantes electrónicos válidos ante SUNAT?', a: 'Sí. Vértice ERP emite facturas, boletas y notas de crédito y débito electrónicas que se envían a SUNAT a través de Nubefact, y conserva el XML, la constancia de recepción (CDR) y el PDF de cada comprobante.' },
+  { group: 'erp', q: '¿Puedo pasar mis productos y clientes desde Excel?', a: 'Sí. Durante la puesta en marcha te ayudamos a cargar tus productos y clientes para que empieces a facturar con tu propia información.' },
+  { group: 'erp', q: '¿Cómo empiezo con Vértice ERP?', a: 'Solicita una demo: revisamos los procesos de tu empresa, configuramos tu facturación electrónica y te ayudamos a cargar tus productos y clientes.' },
+  { group: 'erp', q: '¿Cuánto cuesta Vértice ERP?', a: 'Depende del tamaño y las necesidades de tu empresa. Solicita una demo sin compromiso y te preparamos una propuesta a tu medida.' },
+  { group: 'agency', q: '¿Qué debe tener un software de gestión de proyectos para agencias?', a: 'Además de tareas en Kanban y Gantt, una agencia necesita conectar la venta con la entrega y el cobro: CRM, cotizaciones, facturación con pagos parciales y rentabilidad por proyecto, más un acceso limitado para que los clientes sigan su avance. Vértice Agency reúne todo eso en una sola plataforma.' },
+  { group: 'agency', q: '¿Vértice Agency incluye diagrama de Gantt?', a: 'Sí. Incluye diagrama de Gantt online con dependencias, hitos y camino crítico, y las mismas tareas se pueden ver en Kanban o en lista.' },
+  { group: 'agency', q: '¿Puedo saber si un proyecto es rentable?', a: 'Sí. Vértice Agency cruza los ingresos facturados de cada proyecto con sus costos y egresos para mostrarte el margen real de cada proyecto.' },
+  { group: 'agency', q: '¿Cómo me conecto con otras agencias?', a: 'Cada agencia tiene un código de conexión. La otra agencia lo introduce y tú aceptas la solicitud. Luego compartes solo los proyectos que quieras, con acceso de Ver o Colaborar, y la agencia invitada elige qué miembros participan. El presupuesto y las facturas nunca se comparten.' },
+  { group: 'agency', q: '¿Mis clientes pueden ver sus proyectos?', a: 'Sí. Invitas a tu cliente con un enlace de un solo uso que caduca en 7 días. Con el rol cliente ve su dashboard, sus tareas y el calendario, y puede abrir tickets, pero no ve comentarios internos, checklists ni finanzas.' },
+  { group: 'agency', q: '¿Puedo crear cotizaciones y facturas en Vértice Agency?', a: 'Sí. Generas cotizaciones en PDF con tu marca, les haces seguimiento, las conviertes en proyectos y registras facturas con pagos parciales, cuentas por pagar y caja.' },
+  { group: 'agency', q: '¿Vértice Agency se integra con otras herramientas?', a: 'Sí. Ofrece una API con tokens por agencia y webhooks para enviar eventos a tus sistemas, además de exportación de datos.' },
+  { group: 'agency', q: '¿En qué se diferencia Vértice Agency de ClickUp, Trello, Asana, Odoo o monday.com?', a: 'Vértice Agency está pensado para agencias: además de proyectos con Kanban y Gantt, incluye CRM, cotizaciones en PDF, facturación y rentabilidad, y permite compartir proyectos entre agencias conectadas y dar acceso limitado a clientes, sin exponer tus finanzas.' },
+  { group: 'agency', q: '¿Cuánto cuesta Vértice Agency?', a: 'Vértice Agency se crea gratis y se configura en minutos, sin instalar nada.' },
+  { group: 'general', q: '¿Cómo se protege la información de mi negocio?', a: 'Los datos están aislados por cuenta, el acceso se controla con roles y permisos por módulo, y puedes activar la verificación en dos pasos (2FA) o iniciar sesión con Google.' },
+  { group: 'general', q: '¿Vértice está en español?', a: 'Sí. Los dos productos son plataformas web en español: interfaz, cotizaciones, comprobantes y comunicación con tus clientes, sin instalar nada.' },
+];
+
+const FAQ_GROUPS: { id: FaqGroup; label: string }[] = [
+  { id: 'erp', label: 'Vértice ERP' },
+  { id: 'agency', label: 'Vértice Agency' },
+  { id: 'general', label: 'Sobre Vértice' },
 ];
 
 function Faq() {
@@ -1078,20 +1113,33 @@ function Faq() {
     <section id="faq" className="relative border-t border-slate-200 bg-white py-24 sm:py-32">
       <div className="mx-auto grid max-w-7xl gap-12 px-4 sm:px-6 lg:grid-cols-[0.8fr_1.2fr] lg:px-8">
         <Reveal>
-          <Eyebrow>Preguntas frecuentes</Eyebrow>
-          <h2 className="vx-display mt-5 text-4xl font-bold leading-[1.05] text-navy-950 sm:text-5xl">Lo que suelen <span className="text-slate-300">preguntarnos.</span></h2>
+          <div className="lg:sticky lg:top-28">
+            <Eyebrow>Preguntas frecuentes</Eyebrow>
+            <h2 className="vx-display mt-5 text-4xl font-bold leading-[1.05] text-navy-950 sm:text-5xl">Lo que suelen <span className="text-slate-300">preguntarnos.</span></h2>
+            <p className="mt-6 max-w-sm text-sm leading-relaxed text-slate-500">¿No encuentras tu respuesta? Escríbenos en la demo y la resolvemos con tu caso.</p>
+            <ErpDemoLink className="group mt-6 inline-flex items-center gap-2 rounded-full border border-slate-300 px-5 py-2.5 text-sm font-semibold text-navy-950 transition hover:border-navy-950">
+              Hablar con nosotros <ArrowUpRight className="h-4 w-4 transition group-hover:rotate-45" />
+            </ErpDemoLink>
+          </div>
         </Reveal>
-        <div className="divide-y divide-slate-200 border-y border-slate-200">
-          {LANDING_FAQS.map((f, i) => (
-            <Reveal key={f.q} delay={i * 60}>
-              <details className="group py-5">
-                <summary className="flex cursor-pointer list-none items-center justify-between gap-6 text-left [&::-webkit-details-marker]:hidden">
-                  <h3 className="vx-display text-lg font-bold text-navy-950 sm:text-xl">{f.q}</h3>
-                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-slate-200 text-navy-950 transition duration-300 group-open:rotate-45 group-open:border-brand-500 group-open:bg-brand-500 group-open:text-white"><Plus className="h-4 w-4" /></span>
-                </summary>
-                <p className="mt-3 max-w-2xl text-sm leading-relaxed text-slate-500 sm:text-base">{f.a}</p>
-              </details>
-            </Reveal>
+        <div className="space-y-12">
+          {FAQ_GROUPS.map((g) => (
+            <div key={g.id}>
+              <p className="vx-mono mb-2 text-[11px] font-medium uppercase tracking-[0.22em] text-brand-600">{g.label}</p>
+              <div className="divide-y divide-slate-200 border-y border-slate-200">
+                {LANDING_FAQS.filter((f) => f.group === g.id).map((f, i) => (
+                  <Reveal key={f.q} delay={i * 60}>
+                    <details className="group py-5">
+                      <summary className="flex cursor-pointer list-none items-center justify-between gap-6 text-left [&::-webkit-details-marker]:hidden">
+                        <h3 className="vx-display text-lg font-bold text-navy-950 sm:text-xl">{f.q}</h3>
+                        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-slate-200 text-navy-950 transition duration-300 group-open:rotate-45 group-open:border-brand-500 group-open:bg-brand-500 group-open:text-white"><Plus className="h-4 w-4" /></span>
+                      </summary>
+                      <p className="mt-3 max-w-2xl text-sm leading-relaxed text-slate-500 sm:text-base">{f.a}</p>
+                    </details>
+                  </Reveal>
+                ))}
+              </div>
+            </div>
           ))}
         </div>
       </div>
@@ -1102,10 +1150,10 @@ function Faq() {
 /* ------------------------------------------------------------------ */
 function Cta() {
   const chips: { label: string; icon: ReactNode; pos: string; delay: string }[] = [
-    { label: 'Proyectos', icon: <FolderKanban className="h-3.5 w-3.5" />, pos: 'left-[6%] top-[14%]', delay: '0s' },
-    { label: 'CRM', icon: <Handshake className="h-3.5 w-3.5" />, pos: 'right-[8%] top-[22%]', delay: '-2s' },
-    { label: 'Inventario', icon: <Boxes className="h-3.5 w-3.5" />, pos: 'bottom-[14%] left-[12%]', delay: '-4s' },
-    { label: 'SUNAT', icon: <ReceiptText className="h-3.5 w-3.5" />, pos: 'bottom-[20%] right-[6%]', delay: '-1s' },
+    { label: 'SUNAT', icon: <ReceiptText className="h-3.5 w-3.5" />, pos: 'left-[6%] top-[14%]', delay: '0s' },
+    { label: 'Inventario', icon: <Boxes className="h-3.5 w-3.5" />, pos: 'right-[8%] top-[22%]', delay: '-2s' },
+    { label: 'Kardex', icon: <ClipboardList className="h-3.5 w-3.5" />, pos: 'bottom-[14%] left-[12%]', delay: '-4s' },
+    { label: 'Cobranzas', icon: <Wallet className="h-3.5 w-3.5" />, pos: 'bottom-[20%] right-[6%]', delay: '-1s' },
   ];
   return (
     <section className="relative px-4 py-24 sm:px-6 sm:py-32 lg:px-8">
@@ -1115,27 +1163,31 @@ function Cta() {
           <div className="relative px-7 py-14 sm:px-12 sm:py-16 lg:py-20">
             <div className="vx-dots absolute inset-0 [mask-image:radial-gradient(ellipse_at_top_left,#000_10%,transparent_60%)]" />
             <div className="relative">
-              <Eyebrow>Empieza hoy</Eyebrow>
+              <ProductBadge product="erp" />
               <h2 className="vx-display mt-6 text-[2.6rem] font-bold leading-[0.98] text-navy-950 sm:text-6xl">
-                Tu negocio,<br /><span className="vx-gradient-text">en su vértice.</span>
+                Deja el Excel.<br /><span className="vx-gradient-text">Factura con Vértice.</span>
               </h2>
-              <p className="mt-5 max-w-sm text-slate-500">Elige tu app: Vértice Agency gratis en minutos, o una demo de Vértice ERP para tu empresa.</p>
+              <p className="mt-5 max-w-sm text-slate-500">Agenda una demo sin compromiso y te mostramos Vértice ERP con los datos de tu empresa.</p>
               <div className="mt-9 flex flex-wrap items-center gap-3">
-                <a href={AGENCY_SIGNUP_HREF} className="group relative inline-flex items-center gap-2 overflow-hidden rounded-full bg-gradient-to-r from-brand-600 to-cyan-500 px-7 py-3.5 text-sm font-semibold text-white shadow-[0_14px_30px_-10px_rgb(21_115_255/.7)] transition hover:shadow-[0_18px_40px_-8px_rgb(21_115_255/.8)]">
+                <ErpDemoLink className="group relative inline-flex items-center gap-2 overflow-hidden rounded-full bg-gradient-to-r from-brand-600 to-cyan-500 px-7 py-3.5 text-sm font-semibold text-white shadow-[0_14px_30px_-10px_rgb(21_115_255/.7)] transition hover:shadow-[0_18px_40px_-8px_rgb(21_115_255/.8)]">
                   <span className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/30 to-transparent transition duration-700 group-hover:translate-x-full" />
-                  <span className="relative">Crear cuenta en Agency</span>
+                  <span className="relative">Solicitar demo gratis</span>
                   <ArrowUpRight className="relative h-4 w-4 transition group-hover:rotate-45" />
-                </a>
-                <ErpDemoLink className="inline-flex items-center gap-2 rounded-full border border-slate-300 px-6 py-3.5 text-sm font-semibold text-navy-950 transition hover:border-navy-950">Demo de ERP</ErpDemoLink>
+                </ErpDemoLink>
               </div>
-              <p className="mt-4 text-xs text-slate-400">¿Ya tienes cuenta? <a href="/app/login" className="font-semibold text-navy-950 hover:text-brand-600">Inicia sesión</a></p>
-              <ul className="mt-10 flex flex-wrap gap-2">
+              <ul className="mt-8 flex flex-wrap gap-2">
                 {['Datos aislados por cuenta', '2FA', 'Google login'].map((t) => (
                   <li key={t} className="vx-mono inline-flex items-center gap-1.5 rounded-full bg-slate-50 px-3 py-1 text-[11px] text-slate-500 ring-1 ring-slate-200">
                     <ShieldCheck className="h-3 w-3 text-brand-600" />{t}
                   </li>
                 ))}
               </ul>
+              <a href={AGENCY_SIGNUP_HREF} className="group mt-8 flex items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50/70 p-3 text-sm text-slate-500 transition hover:border-brand-300">
+                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white text-brand-600 ring-1 ring-slate-200"><Briefcase className="h-4 w-4" /></span>
+                <span className="flex-1">¿Tienes una agencia? <span className="font-semibold text-navy-950 group-hover:text-brand-600">Crea tu cuenta de Vértice Agency gratis</span></span>
+                <ArrowRight className="h-4 w-4 text-slate-300 transition group-hover:translate-x-0.5 group-hover:text-brand-600" />
+              </a>
+              <p className="mt-4 text-xs text-slate-400">¿Ya tienes cuenta? <a href="/app/login" className="font-semibold text-navy-950 hover:text-brand-600">Inicia sesión</a></p>
             </div>
           </div>
 
@@ -1167,14 +1219,14 @@ function Nav() {
       <div className="mx-auto flex h-14 max-w-5xl items-center justify-between rounded-full border border-slate-200/80 bg-white/75 pl-5 pr-2 shadow-lg shadow-navy-900/5 backdrop-blur-xl">
         <a href="/" aria-label="Vértice, inicio"><img src={asset('logo-clean.png')} alt="Vértice" width={894} height={183} className="h-6 w-auto" /></a>
         <nav aria-label="Principal" className="hidden items-center gap-7 text-[13px] text-slate-500 md:flex">
-          <a href="#agency" className="hover:text-navy-950">Vértice Agency</a>
-          <a href="#erp" className="hover:text-navy-950">Vértice ERP</a>
-          <a href="#comparar" className="hover:text-navy-950">Comparar</a>
+          <a href="#erp" className="font-semibold text-navy-950 hover:text-brand-600">Vértice ERP</a>
+          <a href="#empezar" className="hover:text-navy-950">Cómo empezar</a>
+          <a href="#agency" className="hover:text-navy-950">Para agencias</a>
           <a href="#faq" className="hover:text-navy-950">Preguntas</a>
         </nav>
         <div className="flex items-center gap-1.5 text-[13px] font-semibold">
           <a href="/app/login" className="hidden rounded-full px-4 py-2 text-slate-600 hover:text-navy-950 sm:block">Iniciar sesión</a>
-          <a href="/app/register" className="rounded-full bg-navy-950 px-4 py-2 text-white transition hover:bg-brand-600">Empezar</a>
+          <ErpDemoLink className="rounded-full bg-navy-950 px-4 py-2 text-white transition hover:bg-brand-600">Solicitar demo</ErpDemoLink>
         </div>
       </div>
     </header>
@@ -1191,22 +1243,10 @@ export function LandingPage() {
     <div id="top" className="vx-root min-h-screen">
       <Nav />
       <main>
+        {/* Vértice ERP: producto principal */}
         <Hero />
-        <Marquee />
-        <Apps />
-        <ProductBand
-          id="agency"
-          product="agency"
-          title={<>El ERP para <span className="vx-gradient-text">agencias.</span></>}
-          text="Proyectos, CRM, cotizaciones, facturación y rentabilidad para agencias que trabajan por proyectos, en red con aliados y clientes."
-        />
-        <Network />
-        <Edges />
-        <Bento />
-        <Audience />
-        <AgencyLogos />
-        <Steps />
-        <Compare />
+        <ProductSwitch />
+        <ErpPains />
         <ProductBand
           id="erp"
           product="erp"
@@ -1214,10 +1254,23 @@ export function LandingPage() {
           text="Clientes, productos, inventario, compras, cobranzas, colaboradores y facturación electrónica SUNAT en una sola plataforma."
         />
         <Erp />
+        <ErpOnboarding />
+
+        {/* Vértice Agency: otro producto, claramente separado */}
+        <AgencyDivider />
+        <Network />
+        <Bento />
+        <Audience />
+        <AgencyLogos />
+        <Steps />
+        <Compare />
+
         <Faq />
         <Cta />
       </main>
       <SiteFooter onHome />
+      <StickyErpCta />
+      <ExitIntent />
     </div>
   );
 }
