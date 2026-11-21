@@ -416,6 +416,37 @@ function Erp() {
 }
 
 /* ------------------------------------------------------------------ */
+/* Clientes que ya usan Vértice ERP (prueba social justo tras el hero)  */
+/* ------------------------------------------------------------------ */
+const ERP_CLIENTS: { name: string; logo: string; w: number; h: number }[] = [
+  { name: 'Consultoría Grupo JC S.A.C.', logo: 'clientes/consultoria-grupo-jc.webp', w: 267, h: 240 },
+  { name: 'Magic Auto Spa (Felporca S.A.C.)', logo: 'clientes/magic-auto-spa.webp', w: 363, h: 240 },
+  { name: 'G. Prisma Ingenieros S.A.C.', logo: 'clientes/g-prisma.webp', w: 433, h: 240 },
+];
+
+function ErpClients() {
+  return (
+    <section id="clientes" aria-labelledby="clientes-title" className="relative scroll-mt-24 border-y border-slate-200 bg-white py-16 sm:py-20">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <Reveal className="text-center">
+          <p className="vx-mono text-[11px] font-medium uppercase tracking-[0.22em] text-brand-600">Clientes</p>
+          <h2 id="clientes-title" className="vx-display mt-3 text-2xl font-bold text-navy-950 sm:text-3xl">Empresas que ya trabajan con Vértice ERP</h2>
+        </Reveal>
+        <ul className="mx-auto mt-10 grid max-w-4xl grid-cols-1 gap-4 sm:grid-cols-3">
+          {ERP_CLIENTS.map((c, i) => (
+            <li key={c.logo}>
+              <Reveal delay={i * 100} className="flex h-32 items-center justify-center rounded-3xl border border-slate-200 bg-white p-5 shadow-[0_12px_30px_-20px_rgb(7_42_91/.35)] transition duration-300 hover:-translate-y-1 hover:border-brand-200 sm:h-36">
+                <img src={asset(c.logo)} alt={`Logo de ${c.name}, cliente de Vértice ERP`} width={c.w} height={c.h} loading="lazy" className="max-h-full max-w-full object-contain" />
+              </Reveal>
+            </li>
+          ))}
+        </ul>
+      </div>
+    </section>
+  );
+}
+
+/* ------------------------------------------------------------------ */
 /* Contenido SEO: qué es y por qué Vértice ERP (keywords en texto real) */
 /* ------------------------------------------------------------------ */
 function ErpWhy() {
@@ -546,6 +577,7 @@ export function LandingPage() {
       <SiteHeader product="erp" />
       <main>
         <Hero />
+        <ErpClients />
         <ErpPains />
         <ProductBand
           id="erp"
