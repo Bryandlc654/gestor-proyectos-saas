@@ -4,14 +4,17 @@ import './index.css';
 
 const container = document.getElementById('root')!;
 
-if (window.location.pathname === '/') {
-  // Landing pública en la raíz: index.php sirve el HTML ya prerenderizado, así que se hidrata
+const path = window.location.pathname.replace(/\/+$/, '') || '/';
+
+if (path === '/' || path === '/software-para-agencias') {
+  // Páginas públicas: el PHP sirve el HTML ya prerenderizado, así que se hidrata
   // sin cargar el router ni el resto de la aplicación.
-  void import('./features/landing/LandingPage').then(({ LandingPage }) => {
+  void import('./features/landing/PublicSite').then(({ LandingPage, AgencyPage }) => {
+    const page = path === '/' ? <LandingPage /> : <AgencyPage />;
     if (container.hasChildNodes()) {
-      hydrateRoot(container, <LandingPage />);
+      hydrateRoot(container, page);
     } else {
-      createRoot(container).render(<StrictMode><LandingPage /></StrictMode>);
+      createRoot(container).render(<StrictMode>{page}</StrictMode>);
     }
   });
 } else {

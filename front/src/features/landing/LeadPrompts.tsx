@@ -1,8 +1,8 @@
 // Elementos de conversión de la landing: enlace a la demo del ERP, barra fija con CTA y aviso al intentar salir.
 // Todo lo que depende de window corre en efectos, así el prerender (SSR) no se rompe.
 import { useEffect, useState, type ReactNode } from 'react';
-import { ArrowUpRight, Briefcase, Store, X } from 'lucide-react';
-import { AGENCY_SIGNUP_HREF, ERP_DEMO_EXTERNAL, ERP_DEMO_HREF } from './products';
+import { ArrowUpRight, Store, X } from 'lucide-react';
+import { ERP_DEMO_EXTERNAL, ERP_DEMO_HREF } from './products';
 
 /** Enlace a "Solicitar demo" de Vértice ERP (WhatsApp en pestaña nueva si está configurado). */
 export function ErpDemoLink({ className, children }: { className: string; children: ReactNode }) {
@@ -108,11 +108,6 @@ export function ExitIntent() {
             Solicitar demo gratis <ArrowUpRight className="h-4 w-4 transition group-hover:rotate-45" />
           </ErpDemoLink>
         </div>
-        <a href={AGENCY_SIGNUP_HREF} className="group flex items-center gap-3 px-8 py-5 text-sm text-slate-500 transition hover:bg-slate-50">
-          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-brand-50 text-brand-600 ring-1 ring-brand-100"><Briefcase className="h-4 w-4" /></span>
-          <span className="flex-1">¿Tienes una agencia? <span className="font-semibold text-navy-950 group-hover:text-brand-600">Crea tu cuenta de Vértice Agency gratis</span></span>
-          <ArrowUpRight className="h-4 w-4 text-slate-300 transition group-hover:text-brand-600" />
-        </a>
       </div>
     </div>
   );

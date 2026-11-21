@@ -18,13 +18,15 @@
     # SEO: sitemap dinámico y alias antiguos de la landing
     RewriteRule ^sitemap\.xml$ sitemap.php [L]
     RewriteRule ^(landing|landing\.php)/?$ / [R=301,L]
+    # Alias de la página de Vértice Agency
+    RewriteRule ^(agency|vertice-agency|agencias)/?$ /software-para-agencias [R=301,L]
 
     # Comparativas públicas: /comparar/clickup -> compare.php?c=clickup
-    RewriteRule ^comparar/?$ /#comparar [R=301,NE,L]
+    RewriteRule ^comparar/?$ /software-para-agencias#comparar [R=301,NE,L]
     RewriteRule ^comparar/([a-z0-9-]+)/?$ compare.php?c=$1 [L,QSA]
 
     # Páginas de solución (funciones y sectores): /soluciones/crm-para-agencias -> solution.php?s=crm-para-agencias
-    RewriteRule ^soluciones/?$ /#para-quien [R=301,NE,L]
+    RewriteRule ^soluciones/?$ / [R=301,L]
     RewriteRule ^soluciones/([a-z0-9-]+)/?$ solution.php?s=$1 [L,QSA]
 
     # API v1 (autenticada con Bearer token)

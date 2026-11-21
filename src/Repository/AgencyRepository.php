@@ -68,7 +68,7 @@ final class AgencyRepository
         'admin', 'agencia', 'api', 'api-tokens', 'assets', 'calendar', 'compare', 'comparar', 'config', 'connections', 'crm', 'crm-company', 'dashboard', 'database',
         'export', 'finance', 'forgot-password', 'google-callback', 'google-login', 'includes', 'index', 'invite', 'invoices', 'login', 'logout',
         'node_modules', 'profile', 'profitability', 'project', 'quote', 'quote-form', 'quote-pdf', 'quote-view', 'quotes',
-        'register', 'reports', 'reset-password', 'security', 'settings', 'src',
+        'register', 'reports', 'reset-password', 'security', 'settings', 'software-para-agencias', 'soluciones', 'src', 'sitemap',
         'tasks', 'templates', 'tests', 'trash', 'two-factor', 'uploads', 'users', 'vendor', 'verify-email',
     ];
 

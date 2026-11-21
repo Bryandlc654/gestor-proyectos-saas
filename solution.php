@@ -4,7 +4,7 @@ $slug = strtolower((string)($_GET['s'] ?? ''));
 $file = preg_match('/^[a-z0-9-]{2,60}$/', $slug) ? __DIR__ . '/front/dist/soluciones/' . $slug . '.html' : '';
 
 if ($file === '' || !is_file($file)) {
-    header('Location: /#para-quien', true, 302);
+    header('Location: /', true, 302);
     exit;
 }
 

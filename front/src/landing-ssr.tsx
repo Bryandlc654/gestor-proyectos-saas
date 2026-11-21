@@ -3,11 +3,16 @@ import { renderToString } from 'react-dom/server';
 import { ComparePage } from './features/landing/ComparePage';
 import { COMPETITORS } from './features/landing/compare-data';
 import { LANDING_DESCRIPTION, LANDING_FAQS, LANDING_TITLE, LandingPage } from './features/landing/LandingPage';
+import { AGENCY_FAQS, AGENCY_PAGE_DESCRIPTION, AGENCY_PAGE_TITLE, AgencyPage } from './features/landing/AgencyPage';
 import { SolutionPage } from './features/landing/SolutionPage';
 import { SOLUTIONS } from './features/landing/solution-data';
 
 export function render(): string {
   return renderToString(<LandingPage />);
+}
+
+export function renderAgency(): string {
+  return renderToString(<AgencyPage />);
 }
 
 export function renderCompare(slug: string): string {
@@ -28,3 +33,6 @@ export const landingDescription = LANDING_DESCRIPTION;
 export { ERP_MODULE_NAMES as erpModules } from './features/landing/products';
 export const competitors = COMPETITORS;
 export const solutions = SOLUTIONS;
+export const agencyFaqs = AGENCY_FAQS;
+export const agencyTitle = AGENCY_PAGE_TITLE;
+export const agencyDescription = AGENCY_PAGE_DESCRIPTION;

@@ -4,6 +4,7 @@ import { ArrowRight, ArrowUpRight, Check, Minus, ShieldCheck, Sparkles, X } from
 import { COMPARE_ROWS, COMPARE_UPDATED, COMPETITORS, VERTICE_SUPPORT, type Competitor, type Support } from './compare-data';
 import { SiteFooter } from './SiteFooter';
 import { SiteHeader } from './SiteHeader';
+import { AGENCY_PAGE_PATH } from './ui';
 import './landing.css';
 
 const asset = (file: string) => `${import.meta.env.BASE_URL}${file}`;
@@ -33,7 +34,7 @@ export function ComparePage({ competitor }: { competitor: Competitor }) {
 
   return (
     <div id="top" className="vx-root min-h-screen">
-      <SiteHeader />
+      <SiteHeader product="agency" />
       <main>
         {/* Hero */}
         <div className="vx-noise relative isolate overflow-hidden pb-16 pt-32 sm:pt-40">
@@ -42,7 +43,7 @@ export function ComparePage({ competitor }: { competitor: Competitor }) {
           <div className="vx-aurora -z-10 right-[-12%] top-[5%] h-[420px] w-[420px] bg-cyan-200" />
           <Section className="text-center">
             <nav aria-label="Ruta" className="vx-mono text-[11px] uppercase tracking-[0.2em] text-slate-400">
-              <a href="/" className="hover:text-brand-600">Vértice</a> <span className="mx-1.5">/</span> <a href="/#comparar" className="hover:text-brand-600">Comparar</a> <span className="mx-1.5">/</span> <span className="text-brand-600">{c.name}</span>
+              <a href="/" className="hover:text-brand-600">Vértice</a> <span className="mx-1.5">/</span> <a href={AGENCY_PAGE_PATH} className="hover:text-brand-600">Vértice Agency</a> <span className="mx-1.5">/</span> <span className="text-brand-600">{c.name}</span>
             </nav>
             <h1 className="vx-display mx-auto mt-6 max-w-4xl text-[2.6rem] font-bold leading-[1.02] text-navy-950 sm:text-6xl lg:text-7xl">
               La alternativa a <span className="vx-gradient-text">{c.name}</span><br className="hidden sm:block" /> para agencias.

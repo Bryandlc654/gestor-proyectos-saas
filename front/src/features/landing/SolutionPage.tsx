@@ -7,6 +7,7 @@ import { AGENCY_SIGNUP_HREF, ERP_DEMO_EXTERNAL, ERP_DEMO_HREF } from './products
 import { SOLUTIONS, solutionHref, solutionProduct, type SolutionPage as Solution } from './solution-data';
 import { SiteFooter } from './SiteFooter';
 import { SiteHeader } from './SiteHeader';
+import { AGENCY_PAGE_PATH } from './ui';
 import './landing.css';
 
 const asset = (file: string) => `${import.meta.env.BASE_URL}${file}`;
@@ -28,7 +29,7 @@ export function SolutionPage({ solution }: { solution: Solution }) {
   const related = s.related.map((slug) => SOLUTIONS.find((o) => o.slug === slug)).filter((o): o is Solution => Boolean(o));
   const compare = s.compare.map((slug) => COMPETITORS.find((c) => c.slug === slug)).filter((c): c is (typeof COMPETITORS)[number] => Boolean(c));
   const erp = solutionProduct(s) === 'erp';
-  const section = erp ? { label: 'Vértice ERP', href: '/#erp' } : { label: 'Vértice Agency', href: '/#agency' };
+  const section = erp ? { label: 'Vértice ERP', href: '/' } : { label: 'Vértice Agency', href: AGENCY_PAGE_PATH };
   // CTA principal: registro gratis en Agency, demo en ERP (WhatsApp en pestaña nueva si está configurado).
   const cta = erp
     ? { href: ERP_DEMO_HREF, label: 'Solicitar demo', ext: ERP_DEMO_EXTERNAL ? { target: '_blank', rel: 'noopener noreferrer' } : {} }
@@ -36,7 +37,7 @@ export function SolutionPage({ solution }: { solution: Solution }) {
 
   return (
     <div id="top" className="vx-root min-h-screen">
-      <SiteHeader />
+      <SiteHeader product={erp ? 'erp' : 'agency'} />
       <main>
         {/* Hero */}
         <div className="vx-noise relative isolate overflow-hidden pb-16 pt-32 sm:pt-40">
@@ -150,7 +151,7 @@ export function SolutionPage({ solution }: { solution: Solution }) {
                   </li>
                 ))}
                 <li>
-                  <a href={erp ? '/#erp' : '/#agency'} className="group flex items-center justify-between rounded-2xl bg-slate-50 px-4 py-3 text-sm font-semibold text-navy-950 ring-1 ring-slate-100 transition hover:bg-brand-50 hover:text-brand-700">
+                  <a href={erp ? '/' : AGENCY_PAGE_PATH} className="group flex items-center justify-between rounded-2xl bg-slate-50 px-4 py-3 text-sm font-semibold text-navy-950 ring-1 ring-slate-100 transition hover:bg-brand-50 hover:text-brand-700">
                     {erp ? 'Vértice ERP: todos los módulos' : 'Software de gestión de proyectos para agencias'}
                     <ArrowUpRight className="h-4 w-4 transition group-hover:rotate-45" />
                   </a>
@@ -162,7 +163,7 @@ export function SolutionPage({ solution }: { solution: Solution }) {
               <h2 className="vx-display text-xl font-bold text-navy-950">¿Tu negocio trabaja por proyectos?</h2>
               <p className="mt-3 text-sm leading-relaxed text-slate-500">Si eres una agencia, un estudio o una consultora, Vértice Agency es el ERP pensado para ti: proyectos, CRM, cotizaciones y rentabilidad.</p>
               <ul className="mt-5 space-y-2">
-                {[{ href: '/#agency', label: 'Conoce Vértice Agency' }, { href: solutionHref('crm-para-agencias'), label: 'CRM para agencias' }].map((l) => (
+                {[{ href: AGENCY_PAGE_PATH, label: 'Conoce Vértice Agency' }, { href: solutionHref('crm-para-agencias'), label: 'CRM para agencias' }].map((l) => (
                   <li key={l.href}>
                     <a href={l.href} className="group flex items-center justify-between rounded-2xl bg-white px-4 py-3 text-sm font-semibold text-navy-950 ring-1 ring-brand-100 transition hover:text-brand-700">
                       {l.label}

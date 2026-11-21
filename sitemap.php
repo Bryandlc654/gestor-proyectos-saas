@@ -8,6 +8,12 @@ $urls = [
     ['loc' => $base . '/', 'priority' => '1.0', 'changefreq' => 'weekly', 'lastmod' => $lastmod],
 ];
 
+// Página de Vértice Agency (front/dist/agencias.html)
+$agencyPage = __DIR__ . '/front/dist/agencias.html';
+if (is_file($agencyPage)) {
+    $urls[] = ['loc' => $base . '/software-para-agencias', 'priority' => '0.9', 'changefreq' => 'weekly', 'lastmod' => date('Y-m-d', (int)filemtime($agencyPage))];
+}
+
 // Páginas de solución prerenderizadas (front/dist/soluciones/<slug>.html)
 foreach (glob(__DIR__ . '/front/dist/soluciones/*.html') ?: [] as $file) {
     $urls[] = [

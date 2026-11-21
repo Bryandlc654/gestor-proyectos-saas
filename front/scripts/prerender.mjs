@@ -1,17 +1,21 @@
-// Genera dist/welcome.html (landing) y dist/compare/<slug>.html (comparativas) prerenderizados con SEO completo.
-// index.php sirve la landing en "/" y compare.php las comparativas en "/comparar/<slug>".
+// Genera HTML prerenderizado con SEO completo:
+//   dist/welcome.html            home de Vértice ERP (index.php la sirve en "/")
+//   dist/agencias.html           Vértice Agency (software-para-agencias.php la sirve en "/software-para-agencias")
+//   dist/compare/<slug>.html     comparativas (compare.php, "/comparar/<slug>")
+//   dist/soluciones/<slug>.html  soluciones (solution.php, "/soluciones/<slug>")
 import { mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const site = (process.env.SITE_URL || 'https://verticeplatform.com').replace(/\/$/, '');
+const agencyPath = '/software-para-agencias';
 const ssrDir = resolve(root, 'dist-ssr');
 
-const { render, renderCompare, renderSolution, faqs, competitors, solutions, landingTitle, landingDescription, erpModules } = await import(pathToFileURL(resolve(ssrDir, 'landing-ssr.js')).href);
+const { render, renderAgency, renderCompare, renderSolution, faqs, agencyFaqs, agencyTitle, agencyDescription, competitors, solutions, landingTitle, landingDescription, erpModules } = await import(pathToFileURL(resolve(ssrDir, 'landing-ssr.js')).href);
 const appHtml = render();
 
-// La home presenta las dos apps: Vértice Agency (ERP para agencias) y Vértice ERP (empresas, facturación SUNAT).
+// La home es solo de Vértice ERP; Vértice Agency tiene su página en /software-para-agencias.
 // Título y description viven en LandingPage.tsx; la description se mantiene por debajo de ~155 caracteres.
 const title = landingTitle;
 const description = landingDescription;
@@ -26,6 +30,7 @@ const structuredData = [
     '@type': 'Organization',
     name: 'Vértice',
     alternateName: 'Vértice Platform',
+    areaServed: { '@type': 'Country', name: 'Perú' },
     url: `${site}/`,
     logo: `${site}/assets/logo.png`,
     description: 'Vértice desarrolla Vértice ERP, el ERP para empresas con facturación electrónica SUNAT, y Vértice Agency, el sistema para agencias que trabajan por proyectos.',
@@ -44,41 +49,17 @@ const structuredData = [
     applicationCategory: 'BusinessApplication',
     applicationSubCategory: 'ERP',
     operatingSystem: 'Web',
-    url: `${site}/#erp`,
+    url: `${site}/`,
     image: ogImage,
-    description: 'ERP para empresas con facturación electrónica SUNAT (vía Nubefact), inventario, kardex, compras, cuentas por cobrar y por pagar, colaboradores y asistencias.',
+    description: 'Sistema ERP en la nube para empresas en Perú: facturación electrónica SUNAT (vía Nubefact), inventario, kardex, compras, cuentas por cobrar y por pagar, colaboradores y asistencias.',
     inLanguage: 'es',
     featureList: erpModules,
   },
   {
     '@context': 'https://schema.org',
-    '@type': 'SoftwareApplication',
-    name: 'Vértice Agency',
-    applicationCategory: 'BusinessApplication',
-    applicationSubCategory: 'Gestión de proyectos',
-    operatingSystem: 'Web',
-    url: `${site}/#agency`,
-    image: ogImage,
-    description: 'ERP para agencias: gestión de proyectos con Kanban y Gantt, CRM, cotizaciones, facturación y rentabilidad, en red con agencias aliadas y clientes.',
-    inLanguage: 'es',
-    offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
-    featureList: [
-      'Gestión de proyectos con Kanban y Gantt', 'Tareas, subtareas y dependencias', 'CRM con pipeline comercial',
-      'Cotizaciones en PDF', 'Facturación con pagos parciales', 'Caja y cuentas por pagar', 'Rentabilidad por proyecto',
-      'Conexión entre agencias por código', 'Proyectos compartidos entre agencias con acceso de ver o colaborar', 'Portal de clientes con acceso limitado', 'Tickets de soporte', 'Roles y permisos por módulo', 'API REST y webhooks',
-    ],
-  },
-  {
-    '@context': 'https://schema.org',
     '@type': 'ItemList',
-    name: 'Soluciones de Vértice',
-    itemListElement: solutions.map((s, i) => ({ '@type': 'ListItem', position: i + 1, name: s.name, url: `${site}/soluciones/${s.slug}` })),
-  },
-  {
-    '@context': 'https://schema.org',
-    '@type': 'ItemList',
-    name: 'Comparativas de Vértice',
-    itemListElement: competitors.map((c, i) => ({ '@type': 'ListItem', position: i + 1, name: `Vértice vs ${c.name}`, url: `${site}/comparar/${c.slug}` })),
+    name: 'Soluciones de Vértice ERP',
+    itemListElement: solutions.filter((s) => s.product === 'erp').map((s, i) => ({ '@type': 'ListItem', position: i + 1, name: s.name, url: `${site}/soluciones/${s.slug}` })),
   },
   {
     '@context': 'https://schema.org',
@@ -97,7 +78,7 @@ function seoHead({ path, pageTitle, pageDescription, data, extra = '' }) {
     <link rel="alternate" hreflang="es" href="${url}" />
     <link rel="alternate" hreflang="x-default" href="${url}" />
     <meta property="og:type" content="website" />
-    <meta property="og:locale" content="es_LA" />
+    <meta property="og:locale" content="es_PE" />
     <meta property="og:site_name" content="Vértice" />
     <meta property="og:title" content="${esc(pageTitle)}" />
     <meta property="og:description" content="${esc(pageDescription)}" />
@@ -105,7 +86,7 @@ function seoHead({ path, pageTitle, pageDescription, data, extra = '' }) {
     <meta property="og:image" content="${ogImage}" />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
-    <meta property="og:image:alt" content="Vértice, ERP para agencias y empresas" />
+    <meta property="og:image:alt" content="${esc(pageTitle)}" />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="${esc(pageTitle)}" />
     <meta name="twitter:description" content="${esc(pageDescription)}" />
@@ -124,8 +105,8 @@ if (!shell.includes('<div id="root" class="h-full"></div>')) throw new Error('in
 // El CSS y JS de la landing son chunks dinámicos: se enlazan en el <head> para evitar un flash sin estilos.
 const base = (shell.match(/src="([^"]*)assets\/index-[^"]+\.js"/) || [, '/front/dist/'])[1];
 const assets = readdirSync(resolve(root, 'dist/assets'));
-const landingCss = assets.filter((f) => /^LandingPage-.*\.css$/.test(f)).map((f) => `<link rel="stylesheet" href="${base}assets/${f}" />`).join('\n    ');
-const landingJs = assets.filter((f) => /^LandingPage-.*\.js$/.test(f)).map((f) => `<link rel="modulepreload" href="${base}assets/${f}" />`).join('\n    ');
+const landingCss = assets.filter((f) => /^PublicSite-.*\.css$/.test(f)).map((f) => `<link rel="stylesheet" href="${base}assets/${f}" />`).join('\n    ');
+const landingJs = assets.filter((f) => /^PublicSite-.*\.js$/.test(f)).map((f) => `<link rel="modulepreload" href="${base}assets/${f}" />`).join('\n    ');
 if (!landingCss) throw new Error('No se encontró el CSS de la landing en dist/assets');
 
 const build = (head, body, { withScripts }) => {
@@ -146,6 +127,64 @@ const landingHtml = build(
 writeFileSync(resolve(root, 'dist/welcome.html'), landingHtml);
 console.log(`✓ dist/welcome.html prerenderizado (${(landingHtml.length / 1024).toFixed(1)} kB) para ${site}`);
 
+// Vértice Agency: página propia en /software-para-agencias
+{
+  const data = [
+  {
+    '@context': 'https://schema.org',
+    '@type': 'SoftwareApplication',
+    name: 'Vértice Agency',
+    applicationCategory: 'BusinessApplication',
+    applicationSubCategory: 'Gestión de proyectos',
+    operatingSystem: 'Web',
+    url: `${site}${agencyPath}`,
+    image: ogImage,
+    description: 'Software de gestión para agencias: gestión de proyectos con Kanban y Gantt, CRM, cotizaciones, facturación y rentabilidad, en red con agencias aliadas y clientes.',
+    inLanguage: 'es',
+    offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
+    featureList: [
+      'Gestión de proyectos con Kanban y Gantt', 'Tareas, subtareas y dependencias', 'CRM con pipeline comercial',
+      'Cotizaciones en PDF', 'Facturación con pagos parciales', 'Caja y cuentas por pagar', 'Rentabilidad por proyecto',
+      'Conexión entre agencias por código', 'Proyectos compartidos entre agencias con acceso de ver o colaborar', 'Portal de clientes con acceso limitado', 'Tickets de soporte', 'Roles y permisos por módulo', 'API REST y webhooks',
+    ],
+  },
+  {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: [
+      { '@type': 'ListItem', position: 1, name: 'Vértice', item: `${site}/` },
+      { '@type': 'ListItem', position: 2, name: 'Vértice Agency', item: `${site}${agencyPath}` },
+    ],
+  },
+  {
+    '@context': 'https://schema.org',
+    '@type': 'ItemList',
+    name: 'Soluciones de Vértice Agency',
+    itemListElement: solutions.filter((s) => s.product !== 'erp').map((s, i) => ({ '@type': 'ListItem', position: i + 1, name: s.name, url: `${site}/soluciones/${s.slug}` })),
+  },
+  {
+    '@context': 'https://schema.org',
+    '@type': 'ItemList',
+    name: 'Comparativas de Vértice Agency',
+    itemListElement: competitors.map((c, i) => ({ '@type': 'ListItem', position: i + 1, name: `Vértice Agency vs ${c.name}`, url: `${site}/comparar/${c.slug}` })),
+  },
+  {
+    '@context': 'https://schema.org',
+    '@type': 'FAQPage',
+    mainEntity: agencyFaqs.map((f) => ({ '@type': 'Question', name: f.q, acceptedAnswer: { '@type': 'Answer', text: f.a } })),
+  },
+  ];
+  const html = build(
+    `${seoHead({ path: agencyPath, pageTitle: agencyTitle, pageDescription: agencyDescription, data, extra: '<noscript><style>.vx-reveal{opacity:1!important;transform:none!important;filter:none!important}</style></noscript>' })}
+    ${landingCss}
+    ${landingJs}`,
+    renderAgency(),
+    { withScripts: true },
+  );
+  writeFileSync(resolve(root, 'dist/agencias.html'), html);
+  console.log(`✓ dist/agencias.html (${(html.length / 1024).toFixed(1)} kB)`);
+}
+
 // Comparativas
 mkdirSync(resolve(root, 'dist/compare'), { recursive: true });
 for (const c of competitors) {
@@ -159,7 +198,7 @@ for (const c of competitors) {
       url: `${site}${path}`,
       inLanguage: 'es',
       about: [
-        { '@type': 'SoftwareApplication', name: 'Vértice Agency', applicationCategory: 'BusinessApplication', operatingSystem: 'Web', url: `${site}/#agency` },
+        { '@type': 'SoftwareApplication', name: 'Vértice Agency', applicationCategory: 'BusinessApplication', operatingSystem: 'Web', url: `${site}${agencyPath}` },
         { '@type': 'SoftwareApplication', name: c.name, applicationCategory: 'BusinessApplication' },
       ],
     },
@@ -168,7 +207,7 @@ for (const c of competitors) {
       '@type': 'BreadcrumbList',
       itemListElement: [
         { '@type': 'ListItem', position: 1, name: 'Vértice', item: `${site}/` },
-        { '@type': 'ListItem', position: 2, name: 'Vértice Agency', item: `${site}/#agency` },
+        { '@type': 'ListItem', position: 2, name: 'Vértice Agency', item: `${site}${agencyPath}` },
         { '@type': 'ListItem', position: 3, name: `Vértice vs ${c.name}`, item: `${site}${path}` },
       ],
     },
@@ -191,8 +230,8 @@ for (const s of solutions) {
   const pageName = `${s.h1Lead} ${s.h1Highlight}`;
   const isErp = s.product === 'erp';
   const app = isErp
-    ? { '@type': 'SoftwareApplication', name: 'Vértice ERP', applicationCategory: 'BusinessApplication', applicationSubCategory: 'ERP', operatingSystem: 'Web', url: `${site}/#erp` }
-    : { '@type': 'SoftwareApplication', name: 'Vértice Agency', applicationCategory: 'BusinessApplication', operatingSystem: 'Web', url: `${site}/#agency`, offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' } };
+    ? { '@type': 'SoftwareApplication', name: 'Vértice ERP', applicationCategory: 'BusinessApplication', applicationSubCategory: 'ERP', operatingSystem: 'Web', url: `${site}/` }
+    : { '@type': 'SoftwareApplication', name: 'Vértice Agency', applicationCategory: 'BusinessApplication', operatingSystem: 'Web', url: `${site}${agencyPath}`, offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' } };
   const data = [
     {
       '@context': 'https://schema.org',
