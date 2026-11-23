@@ -21,6 +21,8 @@ final class ActivityRepository
         'project.baseline_created' => 'Línea base creada',
         'project.baseline_deleted' => 'Línea base eliminada',
         'task.rescheduled' => 'Tarea reprogramada',
+        'meeting.created' => 'Acta de reunión registrada',
+        'meeting.deleted' => 'Acta de reunión eliminada',
         'template.created' => 'Plantilla creada',
         'template.deleted' => 'Plantilla eliminada',
         'share.created' => 'Proyecto compartido',

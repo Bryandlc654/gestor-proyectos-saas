@@ -110,6 +110,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
                 throw $e;
             }
 
+            projectRepository()->clearCache();
             appJson(['success' => true, 'message' => 'Proyectos vinculados correctamente']);
         }
 
@@ -135,6 +136,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
             $memberRole = $newRole === 'cliente' ? 'cliente' : ($newRole === 'project_manager' ? 'project_manager' : 'colaborador');
             getDB()->prepare('UPDATE project_members SET role = ? WHERE user_id = ?')->execute([$memberRole, $targetUserId]);
 
+            projectRepository()->clearCache();
             if ($targetUserId === $userId) {
                 $_SESSION['user_role'] = $newRole;
             }

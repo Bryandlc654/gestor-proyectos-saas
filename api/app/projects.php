@@ -93,6 +93,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
             }
 
             $db->commit();
+            projectRepository()->clearCache();
         } catch (\Throwable $e) {
             if ($db->inTransaction()) $db->rollBack();
             throw $e;

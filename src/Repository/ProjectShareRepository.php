@@ -2,6 +2,8 @@
 
 namespace App\Repository;
 
+use App\Repository\ProjectRepository;
+
 use DomainException;
 use PDO;
 
@@ -67,6 +69,7 @@ final class ProjectShareRepository
      */
     public function share(int $projectId, int $ownerAgencyId, int $guestAgencyId, string $access, ?int $userId): int
     {
+        ProjectRepository::invalidateAccessCache();
         if (!in_array($access, self::ACCESS_LEVELS, true)) {
             throw new DomainException('Nivel de acceso no válido');
         }
@@ -98,6 +101,7 @@ final class ProjectShareRepository
 
     public function setAccess(int $shareId, int $ownerAgencyId, string $access): bool
     {
+        ProjectRepository::invalidateAccessCache();
         if (!in_array($access, self::ACCESS_LEVELS, true)) {
             throw new DomainException('Nivel de acceso no válido');
         }
@@ -112,6 +116,7 @@ final class ProjectShareRepository
     /** Deja de compartir. Solo la agencia dueña puede hacerlo. */
     public function remove(int $shareId, int $ownerAgencyId): bool
     {
+        ProjectRepository::invalidateAccessCache();
         $stmt = $this->db->prepare("
             DELETE FROM project_shares WHERE id = ? AND owner_agency_id = ?
         ");
@@ -121,6 +126,7 @@ final class ProjectShareRepository
 
     public function removeBetweenAgencies(int $agencyA, int $agencyB): void
     {
+        ProjectRepository::invalidateAccessCache();
         $this->db->prepare("
             DELETE FROM project_shares
             WHERE (owner_agency_id = ? AND guest_agency_id = ?)
@@ -162,6 +168,7 @@ final class ProjectShareRepository
      */
     public function setMembers(int $shareId, int $guestAgencyId, array $userIds): void
     {
+        ProjectRepository::invalidateAccessCache();
         $share = $this->find($shareId);
         if ($share === null || $share['guest_agency_id'] !== $guestAgencyId) {
             throw new DomainException('Proyecto compartido no encontrado');

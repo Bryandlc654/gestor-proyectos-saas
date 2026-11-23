@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Archive, CheckSquare, Copy, Eye, EyeOff, FolderKanban, LayoutDashboard, LayoutTemplate, MessagesSquare, MoreHorizontal, Paperclip, Plus, Receipt, Settings2, Share2, UserCog, Users } from 'lucide-react';
+import { Archive, CheckSquare, Copy, Eye, EyeOff, FolderKanban, LayoutDashboard, LayoutTemplate, MessagesSquare, MoreHorizontal, NotebookPen, Paperclip, Plus, Receipt, Settings2, Share2, UserCog, Users } from 'lucide-react';
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useConfirm, useToast } from '../../components/feedback';
@@ -16,8 +16,9 @@ const TasksTab = lazy(() => import('./project/TasksTab').then((m) => ({ default:
 const ConversationTab = lazy(() => import('./project/ConversationTab').then((m) => ({ default: m.ConversationTab })));
 const FilesTab = lazy(() => import('./project/FilesTab').then((m) => ({ default: m.FilesTab })));
 const FinanceTab = lazy(() => import('./project/FinanceTab').then((m) => ({ default: m.FinanceTab })));
+const MeetingsTab = lazy(() => import('./project/MeetingsTab').then((m) => ({ default: m.MeetingsTab })));
 
-const TAB_KEYS: TabKey[] = ['resumen', 'tareas', 'conversacion', 'archivos', 'finanzas'];
+const TAB_KEYS: TabKey[] = ['resumen', 'tareas', 'conversacion', 'archivos', 'actas', 'finanzas'];
 // Compatibilidad con enlaces antiguos (?tab=tasks, ?tab=comments...).
 const LEGACY_TABS: Record<string, [TabKey, Record<string, string>?]> = {
   tasks: ['tareas'], gantt: ['tareas', { vista: 'cronograma' }], checklists: ['tareas', { vista: 'checklists' }],
@@ -206,6 +207,7 @@ export function ProjectPage() {
     { key: 'tareas', label: 'Tareas', icon: CheckSquare, count: data.tasks.length },
     { key: 'conversacion', label: 'Conversación', icon: MessagesSquare, count: openTickets > 0 ? openTickets : undefined, alert: openTickets > 0 },
     { key: 'archivos', label: 'Archivos', icon: Paperclip, count: visibleFiles },
+    { key: 'actas', label: 'Actas', icon: NotebookPen },
     ...(showFinances ? [{ key: 'finanzas' as TabKey, label: 'Finanzas', icon: Receipt, alert: (finances?.totals.pending ?? 0) > 0 }] : []),
   ];
   const activeTab = tab === 'finanzas' && !showFinances ? 'resumen' : tab;
@@ -301,6 +303,7 @@ export function ProjectPage() {
           {activeTab === 'tareas' && <TasksTab />}
           {activeTab === 'conversacion' && <ConversationTab />}
           {activeTab === 'archivos' && <FilesTab />}
+          {activeTab === 'actas' && <MeetingsTab />}
           {activeTab === 'finanzas' && <FinanceTab />}
         </Suspense>
 

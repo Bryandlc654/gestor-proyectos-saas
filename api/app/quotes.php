@@ -179,26 +179,18 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
         if ((string)$quote['status'] !== 'aceptada') {
             appJson(['error' => 'Marca la cotización como aceptada antes de generar la factura.'], 422);
         }
-        try {
-            $invoiceId = financeRepository()->createReceivable($agencyId, $userId, [
-                'project_id' => !empty($quote['project_id']) ? (int)$quote['project_id'] : null,
-                'invoice_number' => '',
-                'client_name' => $quote['client_name'] ?: null,
-                'concept' => 'Cotización ' . $quote['quote_number'] . ' · ' . $quote['title'],
-                'amount' => (float)$quote['total'],
-                'currency' => (string)($quote['currency'] ?: 'USD'),
-                'due_date' => $quote['valid_until'] ?: null,
-                'status' => 'pendiente',
-                'notes' => 'Generada desde la cotización ' . $quote['quote_number'] . '.',
-            ]);
-        } catch (\Throwable $e) {
-            error_log('quote invoice: ' . $e->getMessage());
-            appJson(['error' => 'No se pudo generar la factura desde la cotización.'], 500);
-        }
+        $created = invoiceService()->create($agencyId, $userId, !empty($quote['project_id']) ? (int)$quote['project_id'] : null, [
+            'client_name' => $quote['client_name'] ?: null,
+            'concept' => mb_substr('Cotización ' . $quote['quote_number'] . ' · ' . $quote['title'], 0, 255),
+            'amount' => (float)$quote['total'],
+            'currency' => (string)($quote['currency'] ?: 'USD'),
+            'due_date' => $quote['valid_until'] ?: null,
+            'status' => 'pendiente',
+            'notes' => 'Generada desde la cotización ' . $quote['quote_number'] . '.',
+        ], (string)$user['name']);
+        $invoiceId = $created['id'];
+        $invoiceNumber = $created['number'];
         getDB()->prepare('UPDATE quotes SET invoice_id = ? WHERE id = ? AND agency_id = ?')->execute([$invoiceId, $quoteId, $agencyId]);
-        $stmtInvoice = getDB()->prepare('SELECT invoice_number FROM invoices WHERE id = ?');
-        $stmtInvoice->execute([$invoiceId]);
-        $invoiceNumber = (string)$stmtInvoice->fetchColumn();
         activityRepository()->logByUser($userId, !empty($quote['project_id']) ? (int)$quote['project_id'] : null, 'quote.invoice_created', 'Generó una factura desde la cotización ' . $quote['quote_number']);
         appJson(['success' => true, 'invoice_id' => $invoiceId, 'invoice_number' => $invoiceNumber, 'already' => false, 'message' => 'Factura generada desde la cotización.']);
     }

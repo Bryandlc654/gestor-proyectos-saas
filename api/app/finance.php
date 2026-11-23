@@ -28,6 +28,18 @@ $projectIdFromPost = static function () use ($validProject): ?int {
     return $projectId;
 };
 
+// Factura de la agencia cuyo proyecto (si tiene) es accesible para el usuario; si no, error.
+$requireInvoiceAccess = static function (int $invoiceId) use ($agencyId, $validProject): array {
+    $invoice = financeRepository()->findInvoice($invoiceId, $agencyId);
+    if ($invoice === null) {
+        appJson(['error' => 'Factura no encontrada.'], 404);
+    }
+    if (!empty($invoice['project_id']) && !$validProject((int)$invoice['project_id'])) {
+        appJson(['error' => 'No tienes acceso a la factura indicada.'], 403);
+    }
+    return $invoice;
+};
+
 $payableData = static function () use ($projectIdFromPost): array {
     $supplier = trim((string)($_POST['supplier'] ?? ''));
     $concept = trim((string)($_POST['concept'] ?? ''));
@@ -147,159 +159,36 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
 
             case 'add_invoice_payment':
                 $invoiceId = (int)($_POST['invoice_id'] ?? 0);
-                $amount = round((float)($_POST['amount'] ?? 0), 2);
-                $paidAt = trim((string)($_POST['paid_at'] ?? ''));
-                $method = trim((string)($_POST['method'] ?? ''));
-                $notes = trim((string)($_POST['notes'] ?? ''));
-
-                if (!isIsoDate($paidAt)) {
-                    $paidAt = date('Y-m-d');
-                }
-
-                $invoice = financeRepository()->findInvoice($invoiceId, $agencyId);
-                if ($invoice === null) {
-                    appJson(['error' => 'Factura no encontrada.'], 404);
-                }
-                if (!empty($invoice['project_id']) && !$validProject((int)$invoice['project_id'])) {
-                    appJson(['error' => 'No tienes acceso a la factura indicada.'], 403);
-                }
-
-                $paymentId = financeRepository()->addInvoicePayment(
-                    $invoiceId,
-                    $agencyId,
-                    $userId,
-                    $amount,
-                    $paidAt,
-                    $method !== '' ? mb_substr($method, 0, 40) : null,
-                    $notes !== '' ? mb_substr($notes, 0, 255) : null
-                );
-                if ($paymentId > 0) {
-                    try { cashAutomationService()->syncInvoicePayment($paymentId, $agencyId, $userId); } catch (\Throwable $e) { error_log('Caja: ' . $e->getMessage()); }
-                }
-
-                $invoice = financeRepository()->findInvoice($invoiceId, $agencyId);
-                activityRepository()->logByUser(
-                    $userId,
-                    $invoice !== null && $invoice['project_id'] !== null ? (int)$invoice['project_id'] : null,
-                    'finance.receivable_payment_added',
-                    'Registró un cobro de ' . formatMoney($amount, $invoice['currency'] ?? 'USD') . ' en la factura "' . ($invoice['invoice_number'] ?? '#' . $invoiceId) . '"'
-                );
+                $requireInvoiceAccess($invoiceId);
+                $paymentId = invoiceService()->addPayment($invoiceId, $agencyId, $userId, $_POST['amount'] ?? 0, $_POST['paid_at'] ?? '', $_POST['method'] ?? '', $_POST['notes'] ?? '');
                 appJson(['success' => true, 'paymentId' => $paymentId, 'message' => 'Cobro registrado.']);
 
             case 'delete_invoice_payment':
                 $paymentId = (int)($_POST['payment_id'] ?? 0);
-                financeRepository()->deleteInvoicePayment($paymentId, $agencyId);
-                try { cashAutomationService()->unsyncInvoicePayment($paymentId, $agencyId); } catch (\Throwable $e) { error_log('Caja: ' . $e->getMessage()); }
-                activityRepository()->logByUser($userId, null, 'finance.receivable_payment_deleted', 'Eliminó un cobro de una factura');
+                $requireInvoiceAccess(invoiceService()->paymentInvoice($paymentId, $agencyId)['invoice_id']);
+                invoiceService()->deletePayment($paymentId, $agencyId, $userId);
                 appJson(['success' => true, 'message' => 'Cobro eliminado.']);
 
             case 'create_receivable':
-                $projectId = $projectIdFromPost();
-
-                $clientName = trim((string)($_POST['client_name'] ?? ''));
-                if (mb_strlen($clientName) > 150) {
-                    $clientName = mb_substr($clientName, 0, 150);
-                }
-                $invoiceNumber = trim((string)($_POST['invoice_number'] ?? ''));
-                if (mb_strlen($invoiceNumber) > 50) {
-                    appJson(['error' => 'El número de factura no puede superar los 50 caracteres.'], 422);
-                }
-                $concept = trim((string)($_POST['concept'] ?? ''));
-                if ($concept === '' || mb_strlen($concept) > 255) {
-                    appJson(['error' => 'Escribe el concepto (máximo 255 caracteres).'], 422);
-                }
-                $amount = round((float)($_POST['amount'] ?? 0), 2);
-                if ($amount <= 0) {
-                    appJson(['error' => 'El importe debe ser mayor que cero.'], 422);
-                }
-                $currency = strtoupper(trim((string)($_POST['currency'] ?? '')));
-                if (!isValidCurrency($currency)) {
-                    if ($projectId !== null) {
-                        $stmtCurrency = getDB()->prepare('SELECT currency FROM projects WHERE id = ?');
-                        $stmtCurrency->execute([$projectId]);
-                        $projectCurrency = (string)$stmtCurrency->fetchColumn();
-                        $currency = isValidCurrency($projectCurrency) ? strtoupper($projectCurrency) : 'USD';
-                    } else {
-                        $currency = 'USD';
-                    }
-                }
-                $dueDate = trim((string)($_POST['due_date'] ?? ''));
-                if ($dueDate !== '' && !isIsoDate($dueDate)) {
-                    appJson(['error' => 'La fecha de vencimiento no es válida.'], 422);
-                }
-                $status = ($_POST['status'] ?? '') === 'pagada' ? 'pagada' : 'pendiente';
-                $notes = trim((string)($_POST['notes'] ?? ''));
-
-                $receivableId = financeRepository()->createReceivable($agencyId, $userId, [
-                    'project_id' => $projectId,
-                    'invoice_number' => $invoiceNumber,
-                    'client_name' => $clientName !== '' ? $clientName : null,
-                    'concept' => $concept,
-                    'amount' => $amount,
-                    'currency' => $currency,
-                    'due_date' => $dueDate !== '' ? $dueDate : null,
-                    'status' => $status,
-                    'notes' => $notes !== '' ? mb_substr($notes, 0, 2000) : null,
-                ]);
-
-                $stmtInv = getDB()->prepare('SELECT invoice_number FROM invoices WHERE id = ?');
-                $stmtInv->execute([$receivableId]);
-                $savedNumber = (string)$stmtInv->fetchColumn();
-
-                if ($status === 'pagada') {
-                    foreach (financeRepository()->invoicePaymentIds($receivableId, $agencyId) as $paymentId) {
-                        try { cashAutomationService()->syncInvoicePayment($paymentId, $agencyId, $userId); } catch (\Throwable $e) { error_log('Caja: ' . $e->getMessage()); }
-                    }
-                }
-
-                activityRepository()->logByUser($userId, $projectId, 'invoice.created', 'Emitió la factura "' . $savedNumber . '" por ' . $amount . ' ' . $currency);
-                try {
-                    notificationService()->notifyAgencyAdmins(
-                        $agencyId,
-                        'invoice.created',
-                        'Nueva factura emitida',
-                        $user['name'] . ' emitió la factura ' . $savedNumber . ' por ' . number_format($amount, 2) . ' ' . $currency . '.',
-                        'finance?tab=cobrar',
-                        true,
-                        $userId
-                    );
-                } catch (\Throwable $e) {
-                    error_log('Notificación factura: ' . $e->getMessage());
-                }
-                appJson(['success' => true, 'id' => $receivableId, 'number' => $savedNumber, 'message' => 'Cuenta por cobrar registrada como factura ' . $savedNumber . '.']);
+                $created = invoiceService()->create($agencyId, $userId, $projectIdFromPost(), [
+                    'invoice_number' => $_POST['invoice_number'] ?? '',
+                    'client_name' => $_POST['client_name'] ?? '',
+                    'concept' => $_POST['concept'] ?? '',
+                    'amount' => $_POST['amount'] ?? '',
+                    'currency' => $_POST['currency'] ?? '',
+                    'due_date' => $_POST['due_date'] ?? '',
+                    // Una cuenta por cobrar nace pendiente o cobrada, nunca anulada
+                    'status' => ($_POST['status'] ?? '') === 'pagada' ? 'pagada' : 'pendiente',
+                    'notes' => $_POST['notes'] ?? '',
+                ], (string)$user['name'], 'finance?tab=cobrar');
+                appJson(['success' => true, 'id' => $created['id'], 'number' => $created['number'], 'message' => 'Cuenta por cobrar registrada como factura ' . $created['number'] . '.']);
 
             case 'invoice_paid':
             case 'invoice_pending':
                 $invoiceId = (int)($_POST['invoice_id'] ?? 0);
-                $stmt = getDB()->prepare('SELECT i.id, i.invoice_number, i.project_id FROM invoices i WHERE i.id = ? AND i.agency_id = ?');
-                $stmt->execute([$invoiceId, $agencyId]);
-                $invoice = $stmt->fetch(PDO::FETCH_ASSOC);
-                if ($invoice === false) {
-                    appJson(['error' => 'Factura no encontrada.'], 404);
-                }
-                if (!empty($invoice['project_id']) && !$validProject((int)$invoice['project_id'])) {
-                    appJson(['error' => 'No tienes acceso a la factura indicada.'], 403);
-                }
-
+                $requireInvoiceAccess($invoiceId);
                 $isPaid = $action === 'invoice_paid';
-                if ($isPaid) {
-                    $paymentId = financeRepository()->markInvoicePaid($invoiceId, $agencyId, $userId);
-                    if ($paymentId > 0) {
-                        try { cashAutomationService()->syncInvoicePayment($paymentId, $agencyId, $userId); } catch (\Throwable $e) { error_log('Caja: ' . $e->getMessage()); }
-                    }
-                } else {
-                    try { cashAutomationService()->unsyncInvoicePayments($invoiceId, $agencyId); } catch (\Throwable $e) { error_log('Caja: ' . $e->getMessage()); }
-                    try { cashAutomationService()->unsyncInvoice($invoiceId, $agencyId); } catch (\Throwable $e) { error_log('Caja: ' . $e->getMessage()); }
-                    financeRepository()->reopenInvoice($invoiceId, $agencyId);
-                    getDB()->prepare("UPDATE invoices SET status = 'pendiente', paid_at = NULL WHERE id = ? AND agency_id = ?")
-                        ->execute([$invoiceId, $agencyId]);
-                }
-                activityRepository()->logByUser(
-                    $userId,
-                    $invoice['project_id'] !== null ? (int)$invoice['project_id'] : null,
-                    $isPaid ? 'finance.receivable_paid' : 'finance.receivable_pending',
-                    ($isPaid ? 'Marcó como cobrada' : 'Marcó como pendiente') . ' la factura ' . $invoice['invoice_number']
-                );
+                invoiceService()->changeStatus($invoiceId, $agencyId, $userId, $isPaid ? 'pagada' : 'pendiente', (string)$user['name']);
                 appJson(['success' => true, 'message' => $isPaid ? 'Factura marcada como cobrada.' : 'Factura marcada como pendiente.']);
 
             default:

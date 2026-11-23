@@ -14,8 +14,76 @@ final class ProjectRepository
 {
     private const USER_AGENCY = '(SELECT agency_id FROM users WHERE id = ?)';
 
+    /**
+     * Caché de permisos por petición. Cada endpoint pregunta varios can*() por proyecto y los
+     * listados lo hacen por fila: sin caché eran 1-4 consultas por pregunta (N+1).
+     * La instancia vive lo que dura la petición (projectRepository() es estático); las escrituras
+     * que cambian accesos llaman a clearCache().
+     *
+     * @var array<string, mixed>
+     */
+    private array $cache = [];
+
+    /** Generación global de accesos: cualquier repositorio que cambie accesos la incrementa. */
+    private static int $generation = 0;
+    private int $seenGeneration = 0;
+
     public function __construct(private readonly PDO $db)
     {
+    }
+
+    /**
+     * Invalida la caché de permisos de TODAS las instancias. Lo llaman las escrituras que cambian
+     * quién accede a qué: compartir/dejar de compartir, equipo invitado, conexiones entre agencias,
+     * miembros de proyecto, roles y archivado.
+     */
+    public static function invalidateAccessCache(): void
+    {
+        self::$generation++;
+    }
+
+    /** Vacía la caché de permisos (equivale a invalidateAccessCache()). */
+    public function clearCache(): void
+    {
+        self::invalidateAccessCache();
+    }
+
+    /** @template T @param callable(): T $compute @return T */
+    private function syncGeneration(): void
+    {
+        if ($this->seenGeneration !== self::$generation) {
+            $this->cache = [];
+            $this->seenGeneration = self::$generation;
+        }
+    }
+
+    private function remember(string $key, callable $compute): mixed
+    {
+        $this->syncGeneration();
+        if (!array_key_exists($key, $this->cache)) {
+            $this->cache[$key] = $compute();
+        }
+        return $this->cache[$key];
+    }
+
+    /**
+     * Precarga en una sola pasada el contexto de acceso de varios proyectos (2 consultas en total),
+     * para que los can*() posteriores de un listado no consulten la BD fila por fila.
+     *
+     * @param int[] $projectIds
+     */
+    public function primeAccessContexts(array $projectIds, int $userId, string $role): void
+    {
+        $this->syncGeneration();
+        $ids = array_values(array_unique(array_filter(array_map('intval', $projectIds))));
+        $pending = array_values(array_filter($ids, fn(int $id): bool => !array_key_exists("ctx:$id:$userId:$role", $this->cache)));
+        if ($pending === []) {
+            return;
+        }
+        $contexts = $this->accessContexts($pending, $userId, $role);
+        foreach ($pending as $id) {
+            $this->cache["ctx:$id:$userId:$role"] = $contexts[$id] ?? null;
+        }
     }
 
     /**
@@ -78,10 +146,13 @@ final class ProjectRepository
 
     public function canAccess(int $projectId, int $userId, string $role): bool
     {
-        [$visible, $params] = $this->visibleProjectsSql($userId, $role);
-        $stmt = $this->db->prepare("SELECT 1 FROM projects WHERE id = ? AND id IN ({$visible})");
-        $stmt->execute([$projectId, ...$params]);
-        return (bool)$stmt->fetchColumn();
+        return $this->remember("access:$projectId:$userId:$role", fn() => $this->canAccessUncached($projectId, $userId, $role));
+    }
+
+    private function canAccessUncached(int $projectId, int $userId, string $role): bool
+    {
+        // Reutiliza la lista de proyectos visibles (una consulta por petición, ya cacheada)
+        return in_array($projectId, $this->visibleProjectIds($userId, $role), true);
     }
 
     /**
@@ -90,6 +161,11 @@ final class ProjectRepository
      * se gestiona desde la agencia invitada.
      */
     public function canManage(int $projectId, int $userId, string $role): bool
+    {
+        return $this->remember("manage:$projectId:$userId:$role", fn() => $this->canManageUncached($projectId, $userId, $role));
+    }
+
+    private function canManageUncached(int $projectId, int $userId, string $role): bool
     {
         if ($role === Permissions::ADMIN) {
             $stmt = $this->db->prepare("SELECT 1 FROM projects WHERE id = ? AND agency_id = " . self::USER_AGENCY);
@@ -213,6 +289,11 @@ final class ProjectRepository
 
     public function isOwnerAgency(int $projectId, int $userId): bool
     {
+        return $this->remember("owner:$projectId:$userId", fn() => $this->isOwnerAgencyUncached($projectId, $userId));
+    }
+
+    private function isOwnerAgencyUncached(int $projectId, int $userId): bool
+    {
         $stmt = $this->db->prepare("SELECT 1 FROM projects WHERE id = ? AND agency_id = " . self::USER_AGENCY);
         $stmt->execute([$projectId, $userId]);
         return (bool)$stmt->fetchColumn();
@@ -225,6 +306,11 @@ final class ProjectRepository
      *   level: 'owner' | 'view' | 'collaborate'
      */
     public function accessContext(int $projectId, int $userId, string $role): ?array
+    {
+        return $this->remember("ctx:$projectId:$userId:$role", fn() => $this->accessContextUncached($projectId, $userId, $role));
+    }
+
+    private function accessContextUncached(int $projectId, int $userId, string $role): ?array
     {
         $stmt = $this->db->prepare("
             SELECT p.agency_id, (SELECT agency_id FROM users WHERE id = ?) AS user_agency
@@ -255,6 +341,11 @@ final class ProjectRepository
      * @return array{id: int, project_id: int, owner_agency_id: int, guest_agency_id: int, access: string, owner_agency_name: string, is_admin: bool}|null
      */
     public function guestShare(int $projectId, int $userId, string $role): ?array
+    {
+        return $this->remember("share:$projectId:$userId:$role", fn() => $this->guestShareUncached($projectId, $userId, $role));
+    }
+
+    private function guestShareUncached(int $projectId, int $userId, string $role): ?array
     {
         $stmt = $this->db->prepare("
             SELECT ps.id, ps.project_id, ps.owner_agency_id, ps.guest_agency_id, ps.access,
@@ -312,6 +403,11 @@ final class ProjectRepository
      * @return int[]
      */
     public function visibleProjectIds(int $userId, string $role): array
+    {
+        return $this->remember("visible:$userId:$role", fn() => $this->visibleProjectIdsUncached($userId, $role));
+    }
+
+    private function visibleProjectIdsUncached(int $userId, string $role): array
     {
         [$sql, $params] = $this->visibleProjectsSql($userId, $role);
         $stmt = $this->db->prepare($sql);
@@ -639,6 +735,7 @@ final class ProjectRepository
             WHERE id = ? AND agency_id = " . self::USER_AGENCY . " AND archived_at IS NULL
         ");
         $stmt->execute([$userId, $projectId, $userId]);
+        $this->clearCache();
         return $stmt->rowCount() > 0;
     }
 
@@ -650,6 +747,7 @@ final class ProjectRepository
             WHERE id = ? AND agency_id = " . self::USER_AGENCY . " AND archived_at IS NOT NULL
         ");
         $stmt->execute([$projectId, $userId]);
+        $this->clearCache();
         return $stmt->rowCount() > 0;
     }
 

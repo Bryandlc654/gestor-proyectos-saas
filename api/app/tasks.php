@@ -90,6 +90,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
         $stmt = getDB()->prepare("SELECT id, project_id, title FROM tasks WHERE id IN ($placeholders)");
         $stmt->execute($taskIds);
         $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        projectRepository()->primeAccessContexts(array_column($rows, "project_id"), $userId, $role);
         if (count($rows) !== count($taskIds)) appJson(['error' => 'Alguna de las tareas ya no existe'], 404);
         foreach ($rows as $row) {
             if (!in_array((int)$row['project_id'], $visibleIds, true) || !canDeleteProjectTasks((int)$row['project_id'], $userId, $role)) {
@@ -118,6 +119,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
         $stmt = getDB()->prepare("SELECT id, project_id, title FROM tasks WHERE id IN ($placeholders)");
         $stmt->execute($taskIds);
         $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        projectRepository()->primeAccessContexts(array_column($rows, "project_id"), $userId, $role);
         if (count($rows) !== count($taskIds)) {
             appJson(['error' => 'Alguna de las tareas ya no existe'], 404);
         }
@@ -266,7 +268,10 @@ $stmt = getDB()->prepare("
 $stmt->execute($params);
 
 $tasks = [];
-foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $task) {
+$taskRows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+// Permisos de todos los proyectos del listado en 2 consultas (antes: 1-4 por cada tarea)
+projectRepository()->primeAccessContexts(array_column($taskRows, "project_id"), $userId, $role);
+foreach ($taskRows as $task) {
     $tasks[] = [
         'id' => (int)$task['id'],
         'title' => $task['title'],

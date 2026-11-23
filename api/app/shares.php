@@ -46,6 +46,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
             }
 
             $newShareId = $shares->share($projectId, $agencyId, $guestAgencyId, $access, $userId);
+            projectRepository()->clearCache();
             $projectName = projectRepository()->name($projectId) ?? ('#' . $projectId);
             activityRepository()->logByUser(
                 $userId,
@@ -70,6 +71,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
             if (!$canManageShare || $share === null || $share['project_id'] !== $projectId || $share['owner_agency_id'] !== $agencyId) {
                 appJson(['error' => 'Solo el administrador de la agencia dueña puede dejar de compartir'], 403);
             }
+            projectRepository()->clearCache();
             if (!$shares->remove($shareId, $agencyId)) {
                 appJson(['error' => 'Proyecto compartido no encontrado'], 404);
             }
@@ -96,6 +98,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
                 $ids = array_filter(explode(',', (string)$ids));
             }
             $shares->setMembers($shareId, $agencyId, $ids);
+            projectRepository()->clearCache();
             activityRepository()->logByUser(
                 $userId,
                 $projectId,

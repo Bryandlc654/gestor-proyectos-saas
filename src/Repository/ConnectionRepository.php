@@ -22,6 +22,7 @@ final class ConnectionRepository
      */
     public function request(int $agencyId, string $code, ?int $userId): string
     {
+        ProjectRepository::invalidateAccessCache();
         $target = $this->agencies->findByConnectCode($code);
         if ($target === null) {
             throw new DomainException('No existe ninguna agencia con ese código');
@@ -56,6 +57,7 @@ final class ConnectionRepository
     /** Solo la agencia que recibió la solicitud puede aceptarla. */
     public function accept(int $connectionId, int $agencyId): bool
     {
+        ProjectRepository::invalidateAccessCache();
         $stmt = $this->db->prepare("
             UPDATE agency_connections SET status = 'accepted', accepted_at = NOW()
             WHERE id = ? AND target_agency_id = ? AND status = 'pending'
@@ -70,6 +72,7 @@ final class ConnectionRepository
      */
     public function remove(int $connectionId, int $agencyId): bool
     {
+        ProjectRepository::invalidateAccessCache();
         $stmt = $this->db->prepare("
             SELECT requester_agency_id, target_agency_id FROM agency_connections
             WHERE id = ? AND (requester_agency_id = ? OR target_agency_id = ?)

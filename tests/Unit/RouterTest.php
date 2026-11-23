@@ -32,7 +32,7 @@ final class RouterTest extends TestCase
         [$status, $payload] = $router->handle(new Request('POST', [], ['action' => 'x']));
 
         $this->assertSame(403, $status);
-        $this->assertSame(['success' => false, 'message' => 'Prohibido'], $payload);
+        $this->assertSame(['success' => false, 'error' => 'Prohibido', 'message' => 'Prohibido'], $payload);
     }
 
     public function testRequestHelpers(): void

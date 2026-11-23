@@ -5,7 +5,7 @@ import { initials } from '../../../lib/format';
 import type { ProjectDetail, ProjectInsightsData, ProjectTabsData } from '../../../types';
 
 export type ProjectTask = ProjectDetail['tasks'][number];
-export type TabKey = 'resumen' | 'tareas' | 'conversacion' | 'archivos' | 'finanzas';
+export type TabKey = 'resumen' | 'tareas' | 'conversacion' | 'archivos' | 'actas' | 'finanzas';
 export type TaskView = 'tablero' | 'lista' | 'cronograma' | 'checklists';
 
 /** Permisos efectivos de la vista (en "Ver como cliente" todo queda en solo lectura). */

@@ -32,14 +32,28 @@ final class Router
         $action = $request->string('action');
 
         if (!$this->has($action)) {
-            return [400, ['success' => false, 'message' => 'Acción no válida']];
+            return [400, self::error('Acción no válida')];
         }
 
         try {
             return [200, ($this->routes[$action])($request)];
         } catch (HttpException $e) {
-            return [$e->status(), ['success' => false, 'message' => $e->getMessage()]];
+            return [$e->status(), self::error($e->getMessage())];
+        } catch (\DomainException $e) {
+            // Reglas de negocio y validación (incluye ValidationException): mensaje para el usuario
+            return [422, self::error($e->getMessage())];
         }
+    }
+
+    /**
+     * Formato único de error de toda la API: código HTTP + {success: false, error, message}.
+     * `error` es la clave que lee el front; `message` se mantiene por compatibilidad.
+     *
+     * @return array{success: false, error: string, message: string}
+     */
+    public static function error(string $message): array
+    {
+        return ['success' => false, 'error' => $message, 'message' => $message];
     }
 
     public function dispatch(Request $request): never

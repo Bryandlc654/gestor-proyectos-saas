@@ -218,6 +218,34 @@ function crmRepository(): CrmRepository {
     return $repo ??= new CrmRepository(getDB());
 }
 
+function projectContentRepository(): \App\Repository\ProjectContentRepository {
+    static $repo = null;
+    return $repo ??= new \App\Repository\ProjectContentRepository(getDB());
+}
+
+function checklistRepository(): \App\Repository\ChecklistRepository {
+    static $repo = null;
+    return $repo ??= new \App\Repository\ChecklistRepository(getDB());
+}
+
+function ticketRepository(): \App\Repository\TicketRepository {
+    static $repo = null;
+    return $repo ??= new \App\Repository\TicketRepository(getDB());
+}
+
+function invoiceService(): \App\Service\InvoiceService {
+    static $service = null;
+    return $service ??= new \App\Service\InvoiceService(
+        getDB(),
+        financeRepository(),
+        projectContentRepository(),
+        cashAutomationService(),
+        activityRepository(),
+        notificationService(),
+        dirname(__DIR__) . '/uploads/'
+    );
+}
+
 function financeRepository(): FinanceRepository {
     static $repo = null;
     return $repo ??= new FinanceRepository(getDB());
@@ -771,35 +799,9 @@ function storeUploadedAttachment(array $file, int $maxBytes = AttachmentStorage:
     return (new AttachmentStorage(dirname(__DIR__) . '/uploads/'))->store($file, $maxBytes);
 }
 
-// Badge visual para renderizar en UI
+// Badge visual del rol (etiqueta y clases); la lógica vive en Permissions::roleBadge()
 function getRoleBadge(string $role): array {
-    return match($role) {
-        'admin' => [
-            'label' => 'Administrador',
-            'class' => 'bg-purple-50 text-purple-700 border-purple-200/80',
-            'dot'   => 'bg-purple-500'
-        ],
-        'project_manager' => [
-            'label' => 'Project Manager',
-            'class' => 'bg-indigo-50 text-indigo-700 border-indigo-200/80',
-            'dot'   => 'bg-indigo-500'
-        ],
-        'colaborador' => [
-            'label' => 'Colaborador',
-            'class' => 'bg-emerald-50 text-emerald-700 border-emerald-200/80',
-            'dot'   => 'bg-emerald-500'
-        ],
-        'cliente' => [
-            'label' => 'Cliente',
-            'class' => 'bg-amber-50 text-amber-700 border-amber-200/80',
-            'dot'   => 'bg-amber-500'
-        ],
-        default => [
-            'label' => ucfirst($role),
-            'class' => 'bg-slate-50 text-slate-700 border-slate-200/80',
-            'dot'   => 'bg-slate-400'
-        ]
-    };
+    return Permissions::roleBadge($role);
 }
 
 // Manejo de mensajes flash (notificaciones tipo toast)

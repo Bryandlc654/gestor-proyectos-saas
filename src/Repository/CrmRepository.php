@@ -649,4 +649,11 @@ final class CrmRepository
         }
         return $counts;
     }
+    /** Usuario interno de la agencia que puede ser responsable de una oportunidad. */
+    public function isAssignableOwner(int $userId, int $agencyId): bool
+    {
+        $stmt = $this->db->prepare("SELECT 1 FROM users WHERE id = ? AND agency_id = ? AND role IN ('admin', 'project_manager', 'colaborador')");
+        $stmt->execute([$userId, $agencyId]);
+        return (bool)$stmt->fetchColumn();
+    }
 }

@@ -5,7 +5,7 @@ namespace App\Http;
 use RuntimeException;
 
 /**
- * Error que se devuelve al cliente como JSON {success: false, message} con el código HTTP indicado.
+ * Error que se devuelve al cliente como JSON {success: false, error, message} con el código HTTP indicado.
  */
 final class HttpException extends RuntimeException
 {
@@ -29,9 +29,19 @@ final class HttpException extends RuntimeException
         return new self(404, $message);
     }
 
-    // Error de validación: se responde con 200 y success=false (formato que espera el frontend)
+    // Error de validación de los datos enviados
     public static function invalid(string $message): self
     {
-        return new self(200, $message);
+        return new self(422, $message);
+    }
+
+    public static function badRequest(string $message): self
+    {
+        return new self(400, $message);
+    }
+
+    public static function conflict(string $message): self
+    {
+        return new self(409, $message);
     }
 }
