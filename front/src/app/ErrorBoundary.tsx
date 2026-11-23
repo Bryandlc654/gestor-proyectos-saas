@@ -1,4 +1,5 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react';
+import { isChunkLoadError, reloadForNewVersion } from '../lib/chunkReload';
 
 export class ErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean }> {
   state = { hasError: false };
@@ -8,6 +9,8 @@ export class ErrorBoundary extends Component<{ children: ReactNode }, { hasError
   }
 
   componentDidCatch(error: Error, info: ErrorInfo): void {
+    // Tras un despliegue, una pantalla puede pedir un archivo de la versión anterior: recargar lo resuelve.
+    if (isChunkLoadError(error) && reloadForNewVersion()) return;
     console.error('React UI error', error, info);
   }
 

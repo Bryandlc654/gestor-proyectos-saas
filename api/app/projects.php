@@ -129,6 +129,63 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
         appJson(['success' => true, 'projectId' => $newId, 'message' => 'Proyecto creado correctamente.']);
     }
 
+    // Equipo del proyecto: añadir, cambiar el rol o quitar miembros de la propia agencia.
+    if (in_array($action, ['add_member', 'update_member', 'remove_member'], true)) {
+        $targetId = (int)($_POST['project_id'] ?? 0);
+        if ($targetId <= 0 || !canManageProject($targetId, $userId, $role) || !isProjectOwnerAgency($targetId, $userId)) {
+            appJson(['error' => 'No puedes gestionar el equipo de este proyecto'], 403);
+        }
+        $memberId = (int)($_POST['user_id'] ?? 0);
+        $stmtUser = getDB()->prepare('SELECT id, name, role FROM users WHERE id = ? AND agency_id = ?');
+        $stmtUser->execute([$memberId, $agencyId]);
+        $member = $stmtUser->fetch(PDO::FETCH_ASSOC);
+        if ($member === false) {
+            appJson(['error' => 'Usuario no encontrado en tu agencia'], 404);
+        }
+        $stmtProject = getDB()->prepare('SELECT name FROM projects WHERE id = ?');
+        $stmtProject->execute([$targetId]);
+        $projectName = (string)$stmtProject->fetchColumn();
+
+        // El cliente siempre entra como cliente: no puede recibir un rol interno en el proyecto.
+        $defaultRole = $member['role'] === 'cliente' ? 'cliente' : ($member['role'] === 'project_manager' ? 'project_manager' : 'colaborador');
+        $memberRole = (string)($_POST['role'] ?? $defaultRole);
+        if (!in_array($memberRole, ['project_manager', 'colaborador', 'cliente'], true)
+            || ($member['role'] === 'cliente') !== ($memberRole === 'cliente')) {
+            appJson(['error' => 'Rol no válido para este usuario.'], 422);
+        }
+
+        $db = getDB();
+        if ($action === 'add_member') {
+            $db->prepare('INSERT INTO project_members (project_id, user_id, role) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE role = VALUES(role)')
+                ->execute([$targetId, $memberId, $memberRole]);
+            projectRepository()->clearCache();
+            activityRepository()->logByUser($userId, $targetId, 'project.member_added', 'Añadió a ' . $member['name'] . ' al equipo del proyecto');
+            if ($memberId !== $userId) {
+                try {
+                    notificationService()->notifyUser($memberId, $agencyId, 'project.member_added', 'Te añadieron a un proyecto', 'Ahora formas parte de "' . $projectName . '".', '/project/' . $targetId, false);
+                } catch (\Throwable $e) {
+                    error_log('Notificación miembro: ' . $e->getMessage());
+                }
+            }
+            appJson(['success' => true, 'message' => $member['name'] . ' se añadió al equipo.']);
+        }
+
+        if ($action === 'update_member') {
+            $db->prepare('UPDATE project_members SET role = ? WHERE project_id = ? AND user_id = ?')->execute([$memberRole, $targetId, $memberId]);
+            projectRepository()->clearCache();
+            appJson(['success' => true, 'message' => 'Rol actualizado.']);
+        }
+
+        // remove_member: un PM no puede quitarse a sí mismo (perdería el acceso); el admin conserva el acceso igualmente.
+        if ($memberId === $userId && $role !== 'admin') {
+            appJson(['error' => 'No puedes quitarte a ti mismo del proyecto.'], 422);
+        }
+        $db->prepare('DELETE FROM project_members WHERE project_id = ? AND user_id = ?')->execute([$targetId, $memberId]);
+        projectRepository()->clearCache();
+        activityRepository()->logByUser($userId, $targetId, 'project.member_removed', 'Quitó a ' . $member['name'] . ' del equipo del proyecto');
+        appJson(['success' => true, 'message' => $member['name'] . ' ya no forma parte del equipo.']);
+    }
+
     if ($action === 'archive') {
         $targetId = (int)($_POST['project_id'] ?? 0);
         if ($targetId <= 0 || !canManageProject($targetId, $userId, $role)) {
@@ -325,6 +382,28 @@ if ($projectId > 0) {
         ];
     }
 
+    // Usuarios de la agencia que se pueden añadir al equipo (solo para quien gestiona el proyecto).
+    $canManageMembers = $isOwnerAgency && $canManage;
+    $memberCandidates = [];
+    if ($canManageMembers) {
+        $stmtCandidates = getDB()->prepare("
+            SELECT id, name, email, role, avatar FROM users
+            WHERE agency_id = ? AND id NOT IN (SELECT user_id FROM project_members WHERE project_id = ?)
+            ORDER BY name ASC
+        ");
+        $stmtCandidates->execute([$agencyId, $projectId]);
+        foreach ($stmtCandidates->fetchAll(PDO::FETCH_ASSOC) as $candidate) {
+            $avatar = (string)($candidate['avatar'] ?? '');
+            $memberCandidates[] = [
+                'id' => (int)$candidate['id'],
+                'name' => $candidate['name'],
+                'email' => $candidate['email'],
+                'role' => $candidate['role'],
+                'avatarUrl' => $avatar !== '' ? '/' . ltrim($avatar, '/') : null,
+            ];
+        }
+    }
+
     $stmtTasks = getDB()->prepare("
         SELECT t.*, u.name AS assignee_name,
                (SELECT COUNT(*) FROM comments c WHERE c.task_id = t.id) AS comments_count
@@ -402,6 +481,7 @@ if ($projectId > 0) {
             'isOwnerAgency' => $isOwnerAgency,
             'shared' => !$isOwnerAgency,
             'canManage' => $canManage,
+            'canManageMembers' => $canManageMembers,
             'canEditTasks' => canEditProjectTasks($projectId, $userId, $role),
             'canManageShare' => canManageProjectShare($projectId, $userId, $role),
             'canManageShareMembers' => canManageProjectShareMembers($projectId, $userId, $role),
@@ -413,6 +493,7 @@ if ($projectId > 0) {
             'createdAt' => $project['created_at'] ?? null,
         ],
         'members' => $members,
+        'memberCandidates' => $memberCandidates,
         'tasks' => $tasks,
         'stats' => [
             'total' => $taskTotal,

@@ -76,6 +76,9 @@ foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
         'taskTitle' => $row['task_title'] ?? null,
         'createdAt' => $row['created_at'],
         'downloadUrl' => '/api/files.php?action=download&id=' . (int)$row['id'],
+        'previewUrl' => \App\Upload\AttachmentStorage::previewContentType($row['file_type']) !== null
+            ? '/api/files.php?action=view&id=' . (int)$row['id']
+            : null,
     ];
 }
 

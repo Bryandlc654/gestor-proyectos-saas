@@ -60,6 +60,27 @@ export async function apiUploadRoot<T>(path: string, formData: FormData): Promis
   return parseResponse<T>(response);
 }
 
+/** Igual que apiUploadRoot, pero informa del avance de la subida (fetch no lo permite). */
+export function apiUploadWithProgress<T>(path: string, formData: FormData, onProgress: (loaded: number, total: number) => void): Promise<T> {
+  formData.set('csrf_token', csrfToken);
+  return new Promise<T>((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', path);
+    xhr.withCredentials = true;
+    xhr.setRequestHeader('Accept', 'application/json');
+    xhr.setRequestHeader('X-CSRF-Token', csrfToken);
+    xhr.upload.onprogress = (event) => { if (event.lengthComputable) onProgress(event.loaded, event.total); };
+    xhr.onerror = () => reject(new Error('Se perdió la conexión durante la subida. Inténtalo de nuevo.'));
+    xhr.ontimeout = () => reject(new Error('La subida tardó demasiado. Inténtalo de nuevo.'));
+    xhr.onload = () => {
+      if (xhr.status === 413) { reject(new Error('El archivo es demasiado grande para el servidor.')); return; }
+      const response = new Response(xhr.responseText, { status: xhr.status, headers: { 'content-type': xhr.getResponseHeader('content-type') ?? '' } });
+      parseResponse<T>(response).then(resolve, reject);
+    };
+    xhr.send(formData);
+  });
+}
+
 async function apiPostUrl<T>(url: string, body: Record<string, string | number | boolean | undefined>): Promise<T> {
   const form = new URLSearchParams();
   form.set('csrf_token', csrfToken);

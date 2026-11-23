@@ -11,15 +11,17 @@ use finfo;
  */
 final class AttachmentStorage
 {
-    public const DEFAULT_MAX_BYTES = 20 * 1024 * 1024;
+    // 50 MB: holgado para documentos y vídeos cortos, y por debajo del tope de 100 MB por petición de Cloudflare.
+    public const DEFAULT_MAX_BYTES = 50 * 1024 * 1024;
 
     public const ALLOWED_EXTENSIONS = [
         'pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'odt', 'ods', 'odp',
-        'txt', 'csv', 'md', 'rtf',
-        'jpg', 'jpeg', 'png', 'gif', 'webp',
-        'zip', 'rar', '7z',
-        'mp3', 'mp4', 'mov', 'webm',
-        'fig', 'psd', 'ai', 'sketch',
+        'key', 'pages', 'numbers',
+        'txt', 'csv', 'md', 'rtf', 'json', 'xml',
+        'jpg', 'jpeg', 'png', 'gif', 'webp', 'heic', 'heif', 'tif', 'tiff', 'bmp',
+        'zip', 'rar', '7z', 'tar', 'gz',
+        'mp3', 'wav', 'm4a', 'ogg', 'aac', 'mp4', 'mov', 'webm', 'avi', 'mkv', 'm4v',
+        'fig', 'psd', 'ai', 'sketch', 'xd', 'eps', 'indd',
     ];
 
     // Tipos MIME de imagen admitidos (comentarios y logo) => extensión con la que se guardan
@@ -32,6 +34,54 @@ final class AttachmentStorage
 
     // Contenido que el navegador o el servidor podrían interpretar, aunque venga disfrazado
     private const FORBIDDEN_MIME_PATTERN = '#^(text/html|application/xhtml|image/svg|application/x-(php|httpd-php|sh|executable|msdownload))#';
+
+    // Tipos que el navegador puede mostrar dentro de la app sin riesgo (nunca HTML/SVG, que ejecutarían scripts)
+    private const PREVIEW_TYPES = [
+        'application/pdf' => 'application/pdf',
+        'image/jpeg' => 'image/jpeg',
+        'image/png' => 'image/png',
+        'image/webp' => 'image/webp',
+        'image/gif' => 'image/gif',
+        'image/bmp' => 'image/bmp',
+        'audio/mpeg' => 'audio/mpeg',
+        'audio/wav' => 'audio/wav',
+        'audio/x-wav' => 'audio/wav',
+        'audio/ogg' => 'audio/ogg',
+        'audio/mp4' => 'audio/mp4',
+        'audio/x-m4a' => 'audio/mp4',
+        'video/mp4' => 'video/mp4',
+        'video/webm' => 'video/webm',
+        'video/quicktime' => 'video/mp4',
+        'text/plain' => 'text/plain; charset=utf-8',
+        'text/csv' => 'text/plain; charset=utf-8',
+        'text/markdown' => 'text/plain; charset=utf-8',
+        'text/x-markdown' => 'text/plain; charset=utf-8',
+        'application/json' => 'text/plain; charset=utf-8',
+    ];
+
+    /** Content-Type con el que se puede mostrar el archivo en el navegador, o null si no admite vista previa. */
+    public static function previewContentType(?string $mime): ?string
+    {
+        return self::PREVIEW_TYPES[strtolower(trim((string)$mime))] ?? null;
+    }
+
+    /** Envía un archivo para mostrarlo en el navegador (inline) y termina la petición. */
+    public static function sendInline(string $path, string $originalName, string $contentType): never
+    {
+        $name = basename($originalName);
+        $asciiName = preg_replace('/[^A-Za-z0-9._ -]/', '_', $name);
+        while (ob_get_level() > 0) {
+            ob_end_clean();
+        }
+        header_remove('Content-Encoding');
+        header('Content-Type: ' . $contentType);
+        header('X-Content-Type-Options: nosniff');
+        header('Content-Disposition: inline; filename="' . $asciiName . '"; filename*=UTF-8\'\'' . rawurlencode($name));
+        header('Cache-Control: private, max-age=300');
+        header('Content-Length: ' . filesize($path));
+        readfile($path);
+        exit;
+    }
 
     public function __construct(private readonly string $uploadDir)
     {

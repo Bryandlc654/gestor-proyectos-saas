@@ -1,12 +1,13 @@
 import { useMutation } from '@tanstack/react-query';
-import { CheckSquare, Download, ExternalLink, FileText, Folder, FolderPlus, Image as ImageIcon, Link2, Plus, Trash2, UploadCloud, X } from 'lucide-react';
+import { CheckSquare, Download, ExternalLink, Eye, FileText, Folder, FolderPlus, Image as ImageIcon, Link2, Plus, Trash2, UploadCloud, X } from 'lucide-react';
 import { useRef, useState, type DragEvent, type FormEvent } from 'react';
 import { useConfirm, useToast } from '../../../components/feedback';
 import { Card, Input, Select } from '../../../components/ui';
-import { apiPostRoot, apiUploadRoot } from '../../../lib/api';
+import { apiPostRoot, apiUploadWithProgress } from '../../../lib/api';
+import { linkEmbed, PreviewModal } from './MeetingPreview';
 import { errorMessage, formatBytes, relativeTime, useProject } from './shared';
 
-const MAX_SIZE = 10 * 1024 * 1024;
+const MAX_SIZE = 50 * 1024 * 1024;
 type FolderFilter = 'todos' | 'sin_carpeta' | number;
 
 async function ensureOk<T extends { success?: boolean; message?: string }>(promise: Promise<T>): Promise<T> {
@@ -22,9 +23,11 @@ export function FilesTab() {
   const inputRef = useRef<HTMLInputElement>(null);
   const [folder, setFolder] = useState<FolderFilter>('todos');
   const [dragging, setDragging] = useState(false);
-  const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
+  const [progress, setProgress] = useState<{ done: number; total: number; name: string; percent: number } | null>(null);
   const [newFolder, setNewFolder] = useState(false);
   const [newLink, setNewLink] = useState(false);
+  const [previewIndex, setPreviewIndex] = useState<number | null>(null);
+  const [previewLink, setPreviewLink] = useState<{ title: string; url: string } | null>(null);
   // Vincular a tarea: los archivos y enlaces pueden asociarse a una tarea del proyecto.
   const [uploadTaskId, setUploadTaskId] = useState('');
   const taskOptions = [...data.tasks].sort((a, b) => a.title.localeCompare(b.title, 'es'));
@@ -41,9 +44,9 @@ export function FilesTab() {
     if (items.length === 0) return;
     const tooBig = items.filter((file) => file.size > MAX_SIZE);
     const valid = items.filter((file) => file.size <= MAX_SIZE);
-    if (tooBig.length) toast(`${tooBig.length} archivo(s) superan 10 MB y no se subieron.`, 'error');
+    if (tooBig.length) toast(tooBig.length === 1 ? `${tooBig[0].name} supera 50 MB y no se subió.` : `${tooBig.length} archivos superan 50 MB y no se subieron.`, 'error');
     if (!valid.length) return;
-    setProgress({ done: 0, total: valid.length });
+    setProgress({ done: 0, total: valid.length, name: valid[0].name, percent: 0 });
     let failed = 0;
     for (const [index, file] of valid.entries()) {
       const form = new FormData();
@@ -52,13 +55,16 @@ export function FilesTab() {
       if (typeof folder === 'number') form.set('folder_id', String(folder));
       if (uploadTaskId) form.set('task_id', uploadTaskId);
       form.append('attachment', file);
+      setProgress({ done: index, total: valid.length, name: file.name, percent: 0 });
       try {
-        await ensureOk(apiUploadRoot<{ success: boolean; message?: string }>('/api/files.php', form));
+        await ensureOk(apiUploadWithProgress<{ success: boolean; message?: string }>('/api/files.php', form, (loaded, total) => {
+          setProgress({ done: index, total: valid.length, name: file.name, percent: Math.min(99, Math.round((loaded / total) * 100)) });
+        }));
       } catch (error) {
         failed += 1;
         toast(`${file.name}: ${errorMessage(error, 'no se pudo subir.')}`, 'error');
       }
-      setProgress({ done: index + 1, total: valid.length });
+      setProgress({ done: index + 1, total: valid.length, name: file.name, percent: 100 });
     }
     setProgress(null);
     refresh.tabs();
@@ -143,13 +149,14 @@ export function FilesTab() {
             <UploadCloud className={`h-7 w-7 ${dragging ? 'text-brand-600' : 'text-slate-400'}`} />
             {progress ? (
               <>
-                <p className="text-xs font-semibold text-slate-700">Subiendo {progress.done} de {progress.total}…</p>
-                <div className="h-1.5 w-48 overflow-hidden rounded-full bg-slate-100"><div className="h-full rounded-full bg-brand-500 transition-all" style={{ width: `${(progress.done / progress.total) * 100}%` }} /></div>
+                <p className="text-xs font-semibold text-slate-700">{progress.total > 1 ? `Subiendo ${Math.min(progress.done + 1, progress.total)} de ${progress.total} · ` : 'Subiendo · '}{progress.percent}%</p>
+                <p className="max-w-[16rem] truncate text-[11px] text-slate-400">{progress.name}</p>
+                <div className="h-1.5 w-48 overflow-hidden rounded-full bg-slate-100" role="progressbar" aria-valuenow={progress.percent} aria-valuemin={0} aria-valuemax={100}><div className="h-full rounded-full bg-brand-500 transition-all" style={{ width: `${Math.min(100, ((progress.done + (progress.done < progress.total ? progress.percent / 100 : 0)) / progress.total) * 100)}%` }} /></div>
               </>
             ) : (
               <>
                 <p className="text-xs font-semibold text-slate-700">Arrastra archivos aquí o <span className="text-brand-600">haz clic para elegir</span></p>
-                <p className="text-[11px] text-slate-400">Puedes subir varios a la vez · máximo 10 MB cada uno{activeFolder ? ` · se guardarán en "${activeFolder.name}"` : ''}</p>
+                <p className="text-[11px] text-slate-400">Puedes subir varios a la vez · máximo 50 MB cada uno{activeFolder ? ` · se guardarán en "${activeFolder.name}"` : ''}</p>
               </>
             )}
             <input ref={inputRef} type="file" multiple className="hidden" onChange={(event) => { if (event.target.files) void uploadAll(event.target.files); event.target.value = ''; }} />
@@ -166,17 +173,28 @@ export function FilesTab() {
             <p className="px-5 py-10 text-center text-xs text-slate-400">{perms.uploadFiles ? 'No hay archivos aquí. Arrastra el primero a la zona de arriba.' : 'No hay archivos.'}</p>
           ) : (
             <ul className="divide-y divide-slate-100">
-              {files.map((file) => {
+              {files.map((file, index) => {
                 const isImage = file.type?.startsWith('image/');
                 const folderName = folder === 'todos' && file.folderId ? folders.find((item) => item.id === file.folderId)?.name : null;
+                const badge = fileBadge(file.name);
                 return (
                   <li key={file.id} className="group flex items-center gap-3 px-5 py-2.5 hover:bg-slate-50/70">
-                    <span className={`flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl ${isImage ? 'bg-cyan-50 text-cyan-600' : 'bg-brand-50 text-brand-600'}`}>{isImage ? <ImageIcon className="h-4 w-4" /> : <FileText className="h-4 w-4" />}</span>
-                    <a href={file.downloadUrl} className="min-w-0 flex-1">
-                      <span className="block truncate text-xs font-semibold text-slate-800 group-hover:text-brand-700">{file.name}</span>
-                      <span className="block truncate text-[11px] text-slate-400">{formatBytes(file.size)} · {file.user ?? 'Sistema'} · {relativeTime(file.createdAt)}{folderName ? ` · ${folderName}` : ''}</span>
-                    </a>
+                    <button type="button" onClick={() => setPreviewIndex(index)} className="flex min-w-0 flex-1 items-center gap-3 text-left" title={file.previewUrl ? 'Vista previa' : 'Ver detalles y descargar'}>
+                      {isImage && file.previewUrl ? (
+                        <span className="h-9 w-9 flex-shrink-0 overflow-hidden rounded-xl bg-slate-100 ring-1 ring-slate-200/70"><img src={file.previewUrl} alt="" loading="lazy" className="h-full w-full object-cover" /></span>
+                      ) : (
+                        <span className={`relative flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl ${isImage ? 'bg-cyan-50 text-cyan-600' : 'bg-brand-50 text-brand-600'}`}>
+                          {isImage ? <ImageIcon className="h-4 w-4" /> : <FileText className="h-4 w-4" />}
+                          {badge && <span className="absolute -bottom-1 -right-1 rounded bg-white px-0.5 text-[8px] font-bold uppercase leading-tight text-slate-500 ring-1 ring-slate-200">{badge}</span>}
+                        </span>
+                      )}
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-xs font-semibold text-slate-800 group-hover:text-brand-700">{file.name}</span>
+                        <span className="block truncate text-[11px] text-slate-400">{formatBytes(file.size)} · {file.user ?? 'Sistema'} · {relativeTime(file.createdAt)}{folderName ? ` · ${folderName}` : ''}</span>
+                      </span>
+                    </button>
                     {file.taskId && file.taskTitle && <TaskChip title={file.taskTitle} onClick={() => openTask(file.taskId!)} />}
+                    {file.previewUrl && <button type="button" onClick={() => setPreviewIndex(index)} className="rounded-lg p-1.5 text-slate-400 hover:bg-white hover:text-brand-600" title="Vista previa" aria-label={`Vista previa de ${file.name}`}><Eye className="h-4 w-4" /></button>}
                     <a href={file.downloadUrl} className="rounded-lg p-1.5 text-slate-400 hover:bg-white hover:text-brand-600" title="Descargar"><Download className="h-4 w-4" /></a>
                     {canDeleteFile(file) && <button type="button" onClick={async () => { if (await confirm({ title: 'Eliminar archivo', description: file.name, confirmLabel: 'Eliminar', tone: 'danger' })) removeFile.mutate(file.id); }} className="rounded-lg p-1.5 text-slate-300 opacity-0 transition hover:bg-white hover:text-rose-600 group-hover:opacity-100" title="Eliminar"><Trash2 className="h-4 w-4" /></button>}
                   </li>
@@ -214,6 +232,7 @@ export function FilesTab() {
                     <span className="block truncate text-[11px] text-slate-400">{link.url}</span>
                   </a>
                   {link.taskId && link.taskTitle && <TaskChip title={link.taskTitle} onClick={() => openTask(link.taskId!)} />}
+                  {linkEmbed(link.url) && <button type="button" onClick={() => setPreviewLink({ title: link.title, url: link.url })} className="rounded-lg p-1.5 text-slate-400 hover:text-brand-600" title={`Vista previa (${linkEmbed(link.url)?.provider})`} aria-label={`Vista previa de ${link.title}`}><Eye className="h-4 w-4" /></button>}
                   <a href={link.url} target="_blank" rel="noreferrer" className="rounded-lg p-1.5 text-slate-400 hover:text-brand-600" title="Abrir"><ExternalLink className="h-4 w-4" /></a>
                   {perms.manageStructure && <button type="button" onClick={async () => { if (await confirm({ title: 'Eliminar enlace', description: link.title, confirmLabel: 'Eliminar', tone: 'danger' })) removeLink.mutate(link.id); }} className="rounded-lg p-1.5 text-slate-300 opacity-0 transition hover:text-rose-600 group-hover:opacity-100" title="Eliminar enlace"><Trash2 className="h-4 w-4" /></button>}
                 </li>
@@ -222,8 +241,30 @@ export function FilesTab() {
           )}
         </Card>
       </div>
+
+      {previewIndex !== null && files[previewIndex] && (() => {
+        const current = files[previewIndex];
+        return (
+          <PreviewModal
+            title={current.name}
+            subtitle={`${formatBytes(current.size)} · ${current.user ?? 'Sistema'} · ${relativeTime(current.createdAt)}`}
+            file={{ name: current.name, size: current.size, type: current.type, previewUrl: current.previewUrl ?? null, downloadUrl: current.downloadUrl }}
+            onClose={() => setPreviewIndex(null)}
+            onPrev={previewIndex > 0 ? () => setPreviewIndex(previewIndex - 1) : null}
+            onNext={previewIndex < files.length - 1 ? () => setPreviewIndex(previewIndex + 1) : null}
+            position={`${previewIndex + 1} / ${files.length}`}
+          />
+        );
+      })()}
+      {previewLink && <PreviewModal title={previewLink.title} subtitle={previewLink.url} linkUrl={previewLink.url} onClose={() => setPreviewLink(null)} />}
     </div>
   );
+}
+
+/** Extensión corta para distinguir PDF, DOCX, XLSX… en el icono. */
+function fileBadge(name: string): string | null {
+  const ext = name.includes('.') ? name.split('.').pop()?.toLowerCase() ?? '' : '';
+  return ext && ext.length <= 4 ? ext : null;
 }
 
 function TaskChip({ title, onClick }: { title: string; onClick: () => void }) {

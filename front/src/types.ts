@@ -155,6 +155,7 @@ export interface ProjectDetail {
     canEditTasks: boolean;
     canManageShare?: boolean;
     canManageShareMembers?: boolean;
+    canManageMembers?: boolean;
     sharedWithCount?: number;
     sharedBy?: string | null;
     budget: number | null;
@@ -168,6 +169,13 @@ export interface ProjectDetail {
     email: string;
     role: string;
     projectRole: string | null;
+    avatarUrl: string | null;
+  }>;
+  memberCandidates?: Array<{
+    id: number;
+    name: string;
+    email: string;
+    role: string;
     avatarUrl: string | null;
   }>;
   tasks: Array<{
@@ -793,7 +801,7 @@ export interface ApiTokensData {
 
 export interface ProjectTabsData {
   comments: Array<{ id: number; parentId: number | null; taskId: number | null; taskTitle: string | null; userId: number | null; content: string; imagePath: string | null; user: string; avatarUrl: string | null; createdAt: string }>;
-  files: Array<{ id: number; name: string; size: number; type: string; user: string | null; userId?: number | null; folderId?: number | null; taskId?: number | null; taskTitle?: string | null; createdAt: string; downloadUrl: string }>;
+  files: Array<{ id: number; name: string; size: number; type: string; user: string | null; userId?: number | null; folderId?: number | null; taskId?: number | null; taskTitle?: string | null; createdAt: string; downloadUrl: string; previewUrl?: string | null }>;
   folders: Array<{ id: number; name: string; color: string | null }>;
   links: Array<{ id: number; title: string; url: string; createdAt: string; taskId?: number | null; taskTitle?: string | null }>;
   tickets: Array<{ id: number; title: string; description: string; priority: string; status: string; user: string | null; createdAt: string; externalSource: string | null; externalRequesterName: string | null; externalUrl: string | null; repliesCount: number }>;

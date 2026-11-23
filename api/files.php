@@ -12,8 +12,8 @@ if (!isLoggedIn()) {
 $user = currentUser();
 $db = getDB();
 
-// Descarga segura vía GET (lectura: protegida por sesión y permisos, sin token en la URL)
-if (($_GET['action'] ?? '') === 'download') {
+// Descarga (download) o vista previa (view) vía GET: protegidas por sesión y permisos, sin token en la URL
+if (in_array($_GET['action'] ?? '', ['download', 'view'], true)) {
     header('Content-Type: text/plain; charset=utf-8');
     $fileId = (int)($_GET['id'] ?? 0);
 
@@ -38,6 +38,15 @@ if (($_GET['action'] ?? '') === 'download') {
     if (!is_file($filePath)) {
         http_response_code(404);
         exit('El archivo no existe en el servidor.');
+    }
+
+    if ($_GET['action'] === 'view') {
+        $contentType = \App\Upload\AttachmentStorage::previewContentType($file['file_type'] ?? null);
+        if ($contentType === null) {
+            http_response_code(415);
+            exit('Este tipo de archivo no admite vista previa.');
+        }
+        \App\Upload\AttachmentStorage::sendInline($filePath, (string)$file['original_name'], $contentType);
     }
 
     // Nombre de descarga saneado (evita inyección de cabeceras) + versión UTF-8 (RFC 5987)

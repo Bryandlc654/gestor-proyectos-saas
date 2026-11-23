@@ -11,6 +11,29 @@ $db = getDB();
 $method = strtoupper($_SERVER['REQUEST_METHOD'] ?? 'GET');
 $uploadDir = dirname(__DIR__, 2) . '/uploads/';
 
+function meetingPreviewType(?string $mime): ?string {
+    return \App\Upload\AttachmentStorage::previewContentType($mime);
+}
+
+if ($method === 'GET' && ($_GET['action'] ?? '') === 'view') {
+    $stmt = $db->prepare('SELECT project_id, original_name, stored_name, file_type FROM project_meetings WHERE id = ?');
+    $stmt->execute([(int)($_GET['id'] ?? 0)]);
+    $meeting = $stmt->fetch(PDO::FETCH_ASSOC);
+    if ($meeting === false || empty($meeting['stored_name']) || !canAccessProject((int)$meeting['project_id'], $userId, $role)) {
+        appJson(['error' => 'Acta no encontrada'], 404);
+    }
+    $contentType = meetingPreviewType($meeting['file_type']);
+    if ($contentType === null) {
+        appJson(['error' => 'Este tipo de archivo no admite vista previa'], 415);
+    }
+    $path = $uploadDir . basename((string)$meeting['stored_name']);
+    if (!is_file($path)) {
+        appJson(['error' => 'El archivo no existe en el servidor'], 404);
+    }
+
+    \App\Upload\AttachmentStorage::sendInline($path, (string)$meeting['original_name'], $contentType);
+}
+
 if ($method === 'GET' && ($_GET['action'] ?? '') === 'download') {
     $stmt = $db->prepare('SELECT project_id, original_name, stored_name FROM project_meetings WHERE id = ?');
     $stmt->execute([(int)($_GET['id'] ?? 0)]);
@@ -65,7 +88,11 @@ if ($method === 'GET') {
             'linkUrl' => $row['link_url'],
             'fileName' => $hasFile ? $row['original_name'] : null,
             'fileSize' => $hasFile ? (int)$row['file_size'] : null,
+            'fileType' => $hasFile ? $row['file_type'] : null,
             'downloadUrl' => $hasFile ? '/api/app/meetings.php?action=download&id=' . (int)$row['id'] : null,
+            'previewUrl' => $hasFile && meetingPreviewType($row['file_type']) !== null
+                ? '/api/app/meetings.php?action=view&id=' . (int)$row['id']
+                : null,
             'user' => $row['user_name'],
             'createdAt' => $row['created_at'],
         ];

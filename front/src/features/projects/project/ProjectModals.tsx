@@ -1,20 +1,77 @@
 import { useMutation } from '@tanstack/react-query';
-import { LoadingButton, useToast } from '../../../components/feedback';
+import { Plus, UserMinus, UserPlus } from 'lucide-react';
+import { useState } from 'react';
+import { LoadingButton, useConfirm, useToast } from '../../../components/feedback';
 import { Badge, ErrorState, Input, Select } from '../../../components/ui';
 import { apiPost } from '../../../lib/api';
 import { errorMessage, FieldLabel, ModalActions, ModalShell, Avatar, useProject } from './shared';
 
+const PROJECT_ROLE_LABELS: Record<string, string> = { project_manager: 'Project Manager', colaborador: 'Colaborador', cliente: 'Cliente' };
+
 export function TeamModal({ onClose }: { onClose: () => void }) {
-  const { data } = useProject();
+  const { projectId, data, preview, currentUserId, refresh } = useProject();
+  const toast = useToast();
+  const confirm = useConfirm();
+  const [search, setSearch] = useState('');
+  const canManage = Boolean(data.project.canManageMembers) && !preview;
+  const candidates = data.memberCandidates ?? [];
+  const term = search.trim().toLowerCase();
+  const filtered = candidates.filter((user) => !term || user.name.toLowerCase().includes(term) || user.email.toLowerCase().includes(term));
+
+  const mutate = useMutation({
+    mutationFn: (body: Record<string, string | number>) => apiPost<{ success: boolean; message?: string }>('projects.php', { project_id: projectId, ...body }),
+    onSuccess: (result) => { refresh.project(); toast(result.message ?? 'Equipo actualizado.'); },
+    onError: (error) => toast(errorMessage(error, 'No se pudo actualizar el equipo.'), 'error'),
+  });
+
   return (
-    <ModalShell title="Equipo del proyecto" subtitle={`${data.members.length} miembros asignados`} onClose={onClose}>
-      {data.members.length === 0 ? <p className="p-8 text-center text-sm text-slate-400">Sin miembros asignados.</p> : data.members.map((member) => (
-        <div key={member.id} className="flex items-center gap-3 px-6 py-3">
-          <Avatar name={member.name} url={member.avatarUrl} size="h-9 w-9 text-[11px]" />
-          <div className="min-w-0 flex-1"><p className="truncate text-xs font-semibold text-slate-800">{member.name}</p><p className="truncate text-[11px] text-slate-400">{member.email}</p></div>
-          <Badge tone="slate" className="capitalize">{(member.projectRole ?? member.role).replace('_', ' ')}</Badge>
+    <ModalShell title="Equipo del proyecto" subtitle={`${data.members.length} miembro${data.members.length === 1 ? '' : 's'} asignado${data.members.length === 1 ? '' : 's'}`} onClose={onClose} wide>
+      {data.members.length === 0 ? <p className="p-8 text-center text-sm text-slate-400">Sin miembros asignados.</p> : data.members.map((member) => {
+        const projectRole = member.projectRole ?? (member.role === 'cliente' ? 'cliente' : 'colaborador');
+        return (
+          <div key={member.id} className="group flex items-center gap-3 px-6 py-3">
+            <Avatar name={member.name} url={member.avatarUrl} size="h-9 w-9 text-[11px]" />
+            <div className="min-w-0 flex-1"><p className="truncate text-xs font-semibold text-slate-800">{member.name}{member.id === currentUserId && <span className="font-normal text-slate-400"> (tú)</span>}</p><p className="truncate text-[11px] text-slate-400">{member.email}</p></div>
+            {canManage && member.role !== 'cliente' ? (
+              <Select value={projectRole} disabled={mutate.isPending} onChange={(event) => mutate.mutate({ action: 'update_member', user_id: member.id, role: event.target.value })} className="w-[140px] px-2 py-1 text-[11px]" aria-label={`Rol de ${member.name} en el proyecto`}>
+                <option value="project_manager">Project Manager</option>
+                <option value="colaborador">Colaborador</option>
+              </Select>
+            ) : (
+              <Badge tone="slate">{PROJECT_ROLE_LABELS[projectRole] ?? projectRole}</Badge>
+            )}
+            {canManage && (
+              <button type="button" disabled={mutate.isPending} onClick={async () => {
+                if (await confirm({ title: 'Quitar del proyecto', description: `${member.name} dejará de ver este proyecto. Sus tareas y archivos se conservan.`, confirmLabel: 'Quitar', tone: 'danger' })) mutate.mutate({ action: 'remove_member', user_id: member.id });
+              }} className="rounded-lg p-1.5 text-slate-300 transition hover:bg-rose-50 hover:text-rose-600 disabled:opacity-50" title="Quitar del proyecto" aria-label={`Quitar a ${member.name}`}><UserMinus className="h-4 w-4" /></button>
+            )}
+          </div>
+        );
+      })}
+
+      {canManage && (
+        <div className="border-t border-slate-100 bg-slate-50/50 px-6 py-4">
+          <p className="mb-2 flex items-center gap-1.5 text-xs font-semibold text-slate-700"><UserPlus className="h-4 w-4 text-brand-600" />Añadir al equipo</p>
+          {candidates.length === 0 ? (
+            <p className="text-[11px] text-slate-400">Todos los usuarios de tu agencia ya están en el proyecto. Invita a más personas desde <a href="/app/users" className="font-semibold text-brand-700 hover:underline">Usuarios</a>.</p>
+          ) : (
+            <>
+              {candidates.length > 5 && <Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar por nombre o correo" className="mb-2" aria-label="Buscar usuarios" />}
+              <div className="max-h-64 space-y-1 overflow-y-auto">
+                {filtered.length === 0 && <p className="py-2 text-center text-[11px] text-slate-400">Ningún usuario coincide.</p>}
+                {filtered.map((user) => (
+                  <div key={user.id} className="flex items-center gap-3 rounded-xl px-2 py-1.5 hover:bg-white">
+                    <Avatar name={user.name} url={user.avatarUrl} size="h-8 w-8 text-[10px]" />
+                    <div className="min-w-0 flex-1"><p className="truncate text-xs font-medium text-slate-700">{user.name}</p><p className="truncate text-[11px] text-slate-400">{user.email}</p></div>
+                    {user.role === 'cliente' && <Badge tone="slate">Cliente</Badge>}
+                    <button type="button" disabled={mutate.isPending} onClick={() => mutate.mutate({ action: 'add_member', user_id: user.id })} className="inline-flex items-center gap-1 rounded-lg bg-brand-600 px-2.5 py-1 text-[11px] font-semibold text-white hover:bg-brand-700 disabled:opacity-60"><Plus className="h-3 w-3" />Añadir</button>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
         </div>
-      ))}
+      )}
     </ModalShell>
   );
 }

@@ -1,6 +1,7 @@
 import { Suspense, lazy } from 'react';
 import { Navigate, Route, Routes, RouterProvider, createBrowserRouter } from 'react-router-dom';
 import { AppShell } from '../components/AppShell';
+import { RouteError } from './RouteError';
 import { BootstrapProvider } from '../features/auth/BootstrapProvider';
 import { LoginPage, TwoFactorPage, ForgotPasswordPage, ResetPasswordPage, LegalPage, RegisterPage, VerifyEmailPage, InvitePage } from '../features/auth/AuthPages';
 
@@ -108,7 +109,7 @@ function AppRoutes() {
   );
 }
 
-const router = createBrowserRouter([{ path: '*', element: <AppRoutes /> }], { basename: '/app' });
+const router = createBrowserRouter([{ path: '*', element: <AppRoutes />, errorElement: <RouteError /> }], { basename: '/app' });
 
 export function App() {
   return <RouterProvider router={router} />;

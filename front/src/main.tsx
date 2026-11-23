@@ -1,6 +1,9 @@
 import { StrictMode } from 'react';
 import { createRoot, hydrateRoot } from 'react-dom/client';
 import './index.css';
+import { installChunkReloadHandler, isChunkLoadError, reloadForNewVersion } from './lib/chunkReload';
+
+installChunkReloadHandler();
 
 const container = document.getElementById('root')!;
 
@@ -29,6 +32,10 @@ if (path === '/' || path === '/software-para-agencias') {
           </ErrorBoundary>
         </StrictMode>,
       );
+    },
+    (error: unknown) => {
+      // La propia carga inicial falló (p. ej. index de una versión anterior en caché).
+      if (!(isChunkLoadError(error) && reloadForNewVersion())) throw error;
     },
   );
 }
